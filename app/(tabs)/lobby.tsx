@@ -21,7 +21,7 @@ export default function LobbyScreen() {
 
   useEffect(() => {
     pulse.value = withRepeat(
-      withTiming(1.1, { duration: 1000 }),
+      withTiming(1.1, { duration: 1000, reduceMotion: false }),
       -1,
       true
     );

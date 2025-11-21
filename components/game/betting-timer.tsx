@@ -31,8 +31,8 @@ export default function BettingTimer({ seconds, onExpire, isRushRound = false }:
     const speed = isRushRound ? 200 : Math.max(100, 300 / (11 - seconds));
     scale.value = withRepeat(
       withSequence(
-        withTiming(1.1, { duration: speed }),
-        withTiming(1, { duration: speed })
+        withTiming(1.1, { duration: speed, reduceMotion: false }),
+        withTiming(1, { duration: speed, reduceMotion: false })
       ),
       -1,
       true

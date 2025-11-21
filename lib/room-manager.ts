@@ -253,6 +253,8 @@ class RoomManager {
 
     const winCheck = checkWinConditions(this.scores, this.round);
     if (winCheck.gameOver) {
+      const winnerId = winCheck.winner || null;
+      useGameState.getState().actions.setGameWinner(winnerId, winCheck.reason || null);
       this.broadcast({
         type: 'game-over',
         data: {
@@ -287,7 +289,7 @@ class RoomManager {
       useGameState.getState().actions.setGamePhase('RESULTS');
 
       setTimeout(() => {
-        this.broadcast({ type: 'new-round' });
+        this.broadcast({ type: 'new-round', data: { dice: this.currentDice } });
         this.startRound();
       }, 5000);
     }, 500);
@@ -344,6 +346,8 @@ class RoomManager {
         break;
 
       case 'game-over':
+        const winnerId = message.data.winner || null;
+        useGameState.getState().actions.setGameWinner(winnerId, message.data.reason || null);
         useGameState.getState().actions.setGamePhase('GAME_OVER');
         if (message.data.scores) {
           this.scores = message.data.scores;
@@ -363,6 +367,10 @@ class RoomManager {
             clearInterval(this.timerInterval);
             this.timerInterval = null;
           }
+          if (message.data?.dice) {
+            this.currentDice = message.data.dice;
+            useGameState.getState().actions.setCurrentDice(message.data.dice);
+          }
           this.startRound();
         }
         break;
@@ -370,6 +378,8 @@ class RoomManager {
   }
 
   private handleOpponentDisconnect() {
+    const playerId = useGameState.getState().playerId;
+    useGameState.getState().actions.setGameWinner(playerId, 'opponent_disconnected');
     useGameState.getState().actions.setGamePhase('GAME_OVER');
   }
 

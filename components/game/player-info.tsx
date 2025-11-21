@@ -30,9 +30,9 @@ export default function PlayerInfo({
   const [displayPoints, setDisplayPoints] = useState(points);
 
   useEffect(() => {
-    animatedPoints.value = withTiming(points, { duration: 500 });
-    scale.value = withSpring(1.1, { damping: 8 }, () => {
-      scale.value = withSpring(1, { damping: 8 });
+    animatedPoints.value = withTiming(points, { duration: 500, reduceMotion: false });
+    scale.value = withSpring(1.1, { damping: 8, reduceMotion: false }, () => {
+      scale.value = withSpring(1, { damping: 8, reduceMotion: false });
     });
   }, [points]);
 
