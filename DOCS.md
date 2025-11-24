@@ -35,7 +35,7 @@ Both players run identical client code, but the host has additional responsibili
 ## Project Structure
 
 ```
-dAIce-game/
+dice-rush/
 ├── app/
 │   ├── _layout.tsx              # Root layout with theme provider
 │   └── (tabs)/
@@ -818,7 +818,7 @@ Edit `eas.json` to configure build profiles:
         "buildType": "apk"
       },
       "ios": {
-        "bundleIdentifier": "com.yourcompany.daicegame"
+        "bundleIdentifier": "com.yourcompany.dicerush"
       }
     },
     "development": {
@@ -959,11 +959,11 @@ Update `app.json` before deployment:
       "backgroundColor": "#000000"
     },
     "ios": {
-      "bundleIdentifier": "com.yourcompany.daicegame",
+      "bundleIdentifier": "com.yourcompany.dicerush",
       "buildNumber": "1.0.0"
     },
     "android": {
-      "package": "com.yourcompany.daicegame",
+      "package": "com.yourcompany.dicerush",
       "versionCode": 1
     },
     "web": {

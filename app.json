@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "dAIce-game",
-    "slug": "dAIce-game",
+    "name": "Dice Rush",
+    "slug": "dice-rush",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "daicegame",
+    "scheme": "dicerush",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

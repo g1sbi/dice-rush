@@ -1,5 +1,5 @@
 {
-  "name": "daice-game",
+  "name": "dice-rush",
   "main": "expo-router/entry",
   "version": "0.15.0",
   "scripts": {
