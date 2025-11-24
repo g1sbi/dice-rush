@@ -23,14 +23,17 @@ interface WaveLayerProps {
   isAnimating?: boolean;
 }
 
-const WaveLayer = ({ color, index, totalLayers, animationSpeed, amplitude, opacity, isAnimating = false }: WaveLayerProps & { isAnimating?: boolean }) => {
+const WaveLayer = ({ color, index, totalLayers, animationSpeed, amplitude, opacity, isAnimating = false, reduceAnimations = false }: WaveLayerProps & { isAnimating?: boolean; reduceAnimations?: boolean }) => {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const scaleX = useSharedValue(1);
 
   useEffect(() => {
-    // Pause animations during dice reveal for performance
-    if (isAnimating) {
+    // Stop animations if reduceAnimations is enabled or during dice reveal
+    if (reduceAnimations || isAnimating) {
+      translateX.value = 0;
+      translateY.value = 0;
+      scaleX.value = 1;
       return;
     }
 
@@ -66,7 +69,7 @@ const WaveLayer = ({ color, index, totalLayers, animationSpeed, amplitude, opaci
       -1,
       true
     );
-  }, [isAnimating]);
+  }, [isAnimating, reduceAnimations]);
 
   const animatedStyle = useAnimatedStyle(() => {
     // Reduce opacity during animation for performance
@@ -176,18 +179,23 @@ interface BackgroundGradientWavesProps {
 }
 
 export default function BackgroundGradientWaves({ isAnimating = false }: BackgroundGradientWavesProps) {
-  const { theme } = useTheme();
+  const { theme, reduceAnimations } = useTheme();
   const bgConfig = getHomeBackgroundConfig(theme);
   const config = bgConfig.gradientWaves;
   const { layerCount, colors, animationSpeed, amplitude, opacity } = config;
 
+  // Adjust layer count based on reduceAnimations setting
+  const effectiveLayerCount = reduceAnimations 
+    ? Math.floor(layerCount * 0.5) // Reduce by 50%
+    : layerCount;
+
   // Distribute colors across layers
   const layerColors = useMemo(() => {
-    return Array.from({ length: layerCount }).map((_, i) => {
-      const colorIndex = Math.floor((i / layerCount) * colors.length);
+    return Array.from({ length: effectiveLayerCount }).map((_, i) => {
+      const colorIndex = Math.floor((i / effectiveLayerCount) * colors.length);
       return colors[Math.min(colorIndex, colors.length - 1)];
     });
-  }, [layerCount, colors]);
+  }, [effectiveLayerCount, colors]);
 
   // Reduce visible layers during animation for performance
   const visibleLayers = isAnimating 
@@ -204,11 +212,12 @@ export default function BackgroundGradientWaves({ isAnimating = false }: Backgro
             key={index}
             color={color}
             index={index}
-            totalLayers={layerCount}
+            totalLayers={effectiveLayerCount}
             animationSpeed={animationSpeed}
             amplitude={amplitude}
             opacity={opacity}
             isAnimating={isAnimating}
+            reduceAnimations={reduceAnimations}
           />
         );
       })}

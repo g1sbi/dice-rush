@@ -1,8 +1,9 @@
 import Dice from '@/components/game/dice-2d';
 import { homeDiceConfig } from '@/lib/home-dice-config';
+import { useTheme } from '@/lib/theme-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -23,6 +24,8 @@ interface HomeDiceProps {
 }
 
 export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDiceProps) {
+  const { reduceAnimations } = useTheme();
+  
   // Dice animation shared values
   const diceScale = useSharedValue(1);
   const diceSkewX = useSharedValue(0);
@@ -163,6 +166,12 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
 
   // Start continuous wave phase animation for synchronization
   const startWavePhase = () => {
+    // Don't start if animations are reduced
+    if (reduceAnimations) {
+      wavePhase.value = 0;
+      return;
+    }
+    
     // Only start wave phase if distortion is enabled
     if (homeDiceConfig.enableWaveDistortion) {
       wavePhase.value = withRepeat(
@@ -222,6 +231,11 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
 
   // Start idle ripple cycle
   const startIdleRipples = () => {
+    // Don't start if animations are reduced
+    if (reduceAnimations) {
+      return;
+    }
+    
     // Only start ripples if enabled
     if (!homeDiceConfig.enableIdleRipples) {
       return;
@@ -243,6 +257,11 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
 
   // Start value change cycle
   const startValueChangeCycle = () => {
+    // Don't start if animations are reduced
+    if (reduceAnimations) {
+      return;
+    }
+    
     // Clear any existing interval
     if (valueChangeIntervalRef.current) {
       clearInterval(valueChangeIntervalRef.current);
@@ -330,20 +349,47 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
     setIsAnimating(false);
   }, []);
 
+  // Effect to handle reduceAnimations changes
+  useEffect(() => {
+    if (reduceAnimations) {
+      // Stop all animations and fix dice at value 4
+      cleanupAnimations();
+      resetSharedValues();
+      setDiceValue(4);
+      // Stop wave phase explicitly
+      cancelAnimation(wavePhase);
+      wavePhase.value = 0;
+    } else {
+      // Restart animations if they were reduced
+      cleanupAnimations();
+      resetSharedValues();
+      startWavePhase();
+      startIdleRipples();
+      startValueChangeCycle();
+    }
+  }, [reduceAnimations, cleanupAnimations, resetSharedValues]);
+
   // Use useFocusEffect to pause/resume animations based on screen visibility
   useFocusEffect(
     useCallback(() => {
       // Screen is focused - reset values and start fresh animations
       resetSharedValues();
-      startWavePhase();
-      startIdleRipples();
-      startValueChangeCycle();
+      
+      if (!reduceAnimations) {
+        startWavePhase();
+        startIdleRipples();
+        startValueChangeCycle();
+      } else {
+        // If animations are reduced, just set dice to 4
+        setDiceValue(4);
+        wavePhase.value = 0;
+      }
 
       return () => {
         // Screen loses focus - clean up all animations
         cleanupAnimations();
       };
-    }, [resetSharedValues, cleanupAnimations])
+    }, [resetSharedValues, cleanupAnimations, reduceAnimations])
   );
 
   // Derived values for wave calculations (only computed if distortion is enabled)
@@ -477,6 +523,11 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
   });
 
   const handlePress = () => {
+    // Don't react to taps when animations are reduced
+    if (reduceAnimations) {
+      return;
+    }
+    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     // Cancel current animations
@@ -611,15 +662,17 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
   return (
     <Pressable
       onPress={handlePress}
+      disabled={reduceAnimations}
       hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-      android_ripple={{
+      android_ripple={reduceAnimations ? undefined : {
         color: 'rgba(255, 255, 255, 0.2)',
         borderless: true,
         radius: size / 2,
       }}
       style={({ pressed }) => [
         styles.pressable,
-        pressed && styles.pressablePressed,
+        pressed && !reduceAnimations && styles.pressablePressed,
+        reduceAnimations && styles.pressableDisabled,
       ]}>
       <View style={[styles.rippleContainer, { width: size * 3, height: size * 3 }]}>
         {/* Ripple layers */}
@@ -643,6 +696,9 @@ const styles = StyleSheet.create({
   },
   pressablePressed: {
     opacity: Platform.OS === 'ios' ? 0.7 : 1,
+  },
+  pressableDisabled: {
+    opacity: 1,
   },
   rippleContainer: {
     justifyContent: 'center',

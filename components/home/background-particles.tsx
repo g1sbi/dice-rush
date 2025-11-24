@@ -40,7 +40,7 @@ interface ParticleConfig {
   color: string;
 }
 
-const Particle = ({ config, isAnimating = false, maxOpacity, enableGlow, direction }: { config: ParticleConfig; isAnimating?: boolean; maxOpacity: number; enableGlow: boolean; direction: 'up' | 'down' | 'random' }) => {
+const Particle = ({ config, isAnimating = false, maxOpacity, enableGlow, direction, reduceAnimations = false }: { config: ParticleConfig; isAnimating?: boolean; maxOpacity: number; enableGlow: boolean; direction: 'up' | 'down' | 'random'; reduceAnimations?: boolean }) => {
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(0);
   const isAnimatingShared = useSharedValue(isAnimating);
@@ -51,6 +51,13 @@ const Particle = ({ config, isAnimating = false, maxOpacity, enableGlow, directi
   }, [isAnimating]);
 
   useEffect(() => {
+    // Stop animations if reduceAnimations is enabled
+    if (reduceAnimations) {
+      translateY.value = 0;
+      opacity.value = maxOpacity * 0.3; // Static opacity
+      return;
+    }
+
     const movement = direction === 'up' ? -100 : 
                     direction === 'down' ? 100 :
                     Math.random() > 0.5 ? -100 : 100;
@@ -81,7 +88,7 @@ const Particle = ({ config, isAnimating = false, maxOpacity, enableGlow, directi
         false
       )
     );
-  }, [maxOpacity]); // Regenerate when maxOpacity changes
+  }, [maxOpacity, reduceAnimations]); // Regenerate when maxOpacity or reduceAnimations changes
 
   // Adjust opacity based on isAnimating state without recreating animations
   const style = useAnimatedStyle(() => {
@@ -128,20 +135,35 @@ interface BackgroundParticlesProps {
 }
 
 export default function BackgroundParticles({ isAnimating = false }: BackgroundParticlesProps) {
-  const { theme } = useTheme();
+  const { theme, reduceAnimations } = useTheme();
   const config = getHomeBackgroundConfig(theme);
   const particlesConfig = config.particles;
   
-  // Regenerate particles when theme changes
+  // Adjust config based on reduceAnimations setting
+  const adjustedConfig = useMemo(() => {
+    if (reduceAnimations) {
+      return {
+        ...particlesConfig,
+        count: Math.floor(particlesConfig.count * 0.5), // Reduce by 50%
+        enableGlow: false, // Disable glow effects
+      };
+    }
+    return particlesConfig;
+  }, [particlesConfig, reduceAnimations]);
+  
+  // Regenerate particles when theme or reduceAnimations changes
   const particles = useMemo(
-    () => generateParticles(particlesConfig),
-    [theme]
+    () => generateParticles(adjustedConfig),
+    [theme, reduceAnimations]
   );
   
   // Reduce visible particles during animation for performance
   const visibleParticles = isAnimating 
     ? particles.filter((_, i) => i % 2 === 0) // Show every other particle
     : particles;
+  
+  // Disable glow when animations are reduced
+  const effectiveEnableGlow = reduceAnimations ? false : adjustedConfig.enableGlow;
 
   return (
     <View 
@@ -154,9 +176,10 @@ export default function BackgroundParticles({ isAnimating = false }: BackgroundP
           key={p.id} 
           config={p} 
           isAnimating={isAnimating}
-          maxOpacity={particlesConfig.maxOpacity}
-          enableGlow={particlesConfig.enableGlow}
-          direction={particlesConfig.direction}
+          maxOpacity={adjustedConfig.maxOpacity}
+          enableGlow={effectiveEnableGlow}
+          direction={adjustedConfig.direction}
+          reduceAnimations={reduceAnimations}
         />
       ))}
     </View>
