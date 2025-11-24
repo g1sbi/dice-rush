@@ -7,7 +7,7 @@
 
 export const APP_INFO = {
   /** App version number (e.g., "0.12.0") */
-  VERSION: '0.15.2',
+  VERSION: '0.16.0',
   
   /** App title displayed on home screen */
   TITLE: 'DICE RUSH!',

@@ -67,22 +67,22 @@ interface DotProps {
 }
 
 const Dot = ({ size, variant }: DotProps) => {
-  const dotStyle = variant === 'transparent' 
-    ? styles.dotTransparent 
+  const dotStyle = variant === 'transparent'
+    ? styles.dotTransparent
     : styles.dotSolid;
-  
+
   return (
-  <View
-    style={[
+    <View
+      style={[
         dotStyle,
-      {
-        width: size * 0.15,
-        height: size * 0.15,
-        borderRadius: (size * 0.15) / 2,
-      },
-    ]}
-  />
-);
+        {
+          width: size * 0.15,
+          height: size * 0.15,
+          borderRadius: (size * 0.15) / 2,
+        },
+      ]}
+    />
+  );
 };
 
 interface DiceFaceProps {
@@ -92,12 +92,12 @@ interface DiceFaceProps {
 }
 
 const DiceFace = ({ faceValue, size, variant }: DiceFaceProps) => {
-  const DICE_POSITIONS = variant === 'transparent' 
-    ? DICE_POSITIONS_TIGHT 
+  const DICE_POSITIONS = variant === 'transparent'
+    ? DICE_POSITIONS_TIGHT
     : DICE_POSITIONS_NORMAL;
   const positions = DICE_POSITIONS[faceValue] || DICE_POSITIONS[1];
   const dotSize = size * 0.15;
-  
+
   const faceStyle = variant === 'transparent'
     ? styles.faceTransparent
     : styles.faceSolid;
@@ -150,7 +150,7 @@ export default function Dice({ value, size = 120, animated = false, variant = 's
         withTiming(360, { duration: 800 }), // Single smooth rotation
         withTiming(0, { duration: 0 }) // Instant reset for next time
       );
-      
+
       // Pop effect
       scale.value = withSequence(
         withTiming(1.2, { duration: 320 }),
@@ -167,15 +167,15 @@ export default function Dice({ value, size = 120, animated = false, variant = 's
     // When close to perpendicular, increase scale to simulate edge thickness
     // This prevents the plane from completely disappearing
     const thicknessScale = 1 + (Math.cos((angleFromPerpendicular * Math.PI) / 180) * 0.5);
-    
+
     // Fade out when approaching perpendicular to hide face change
     // Creates smooth transition by making dots invisible during the change
     // Fade starts at ±25 degrees from perpendicular with exponential curve
     const fadeThreshold = 25;
-    const fadeOpacity = angleFromPerpendicular < fadeThreshold 
+    const fadeOpacity = angleFromPerpendicular < fadeThreshold
       ? Math.pow(angleFromPerpendicular / fadeThreshold, 3) // Cubic fade for very fast transition
       : 1;
-    
+
     return {
       transform: [
         { perspective: 1000 },
@@ -186,16 +186,10 @@ export default function Dice({ value, size = 120, animated = false, variant = 's
     };
   });
 
-  // Simple flat plane that rotates around vertical axis
-  // Two faces: front and back (rotated 180°) so dots are visible from both sides
+  // Single face with wave distortion effects
   return (
     <Animated.View style={[styles.container, { width: size, height: size }, animatedStyle]}>
-      {/* Front face */}
       <DiceFace faceValue={value} size={size} variant={variant} />
-      {/* Back face - rotated 180° to show dots on the other side */}
-      <View style={{ position: 'absolute', transform: [{ rotateY: '180deg' }] }}>
-        <DiceFace faceValue={value} size={size} variant={variant} />
-      </View>
     </Animated.View>
   );
 }

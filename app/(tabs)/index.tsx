@@ -1,4 +1,4 @@
-import BackgroundParticles from '@/components/home/background-particles';
+import Background from '@/components/home/background';
 import GameTitle from '@/components/home/game-title';
 import HomeDice from '@/components/home/home-dice';
 import { getVersionString } from '@/constants/app-info';
@@ -107,7 +107,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <BackgroundParticles />
+      <Background />
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

@@ -7,7 +7,7 @@ export default function GameTitle() {
     <View style={styles.container}>
       <View style={styles.titleRow}>
         <Text style={styles.diceText}>DICE</Text>
-        <Text style={styles.rushText}>RUSH</Text>
+        <Text style={styles.rushText}>RUSH!</Text>
       </View>
       
       <View style={styles.badgeContainer}>

@@ -1,39 +1,60 @@
+import { homeBackgroundConfig } from '@/lib/home-background-config';
 import React, { useEffect } from 'react';
-import { StyleSheet, View, Dimensions } from 'react-native';
+import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, {
-  useSharedValue,
+  Easing,
   useAnimatedStyle,
+  useSharedValue,
+  withDelay,
   withRepeat,
   withSequence,
   withTiming,
-  Easing,
-  withDelay,
 } from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
 
-// Generate random properties for particles
-const NUM_PARTICLES = 15;
-const particles = Array.from({ length: NUM_PARTICLES }).map((_, i) => ({
-  id: i,
-  x: Math.random() * width,
-  y: Math.random() * height,
-  size: Math.random() * 4 + 2, // 2-6px
-  duration: Math.random() * 5000 + 5000, // 5-10s
-  delay: Math.random() * 2000,
-  color: Math.random() > 0.5 ? '#00D4FF' : '#FF00FF', // Cyan or Magenta
-}));
+// Generate random properties for particles using config
+function generateParticles() {
+  const config = homeBackgroundConfig.particles;
+  const [minSize, maxSize] = config.sizeRange;
+  const [minSpeed, maxSpeed] = config.speedRange;
+  
+  return Array.from({ length: config.count }).map((_, i) => ({
+    id: i,
+    x: Math.random() * width,
+    y: Math.random() * height,
+    size: Math.random() * (maxSize - minSize) + minSize,
+    duration: Math.random() * (maxSpeed - minSpeed) + minSpeed,
+    delay: Math.random() * 2000,
+    color: config.colors[Math.floor(Math.random() * config.colors.length)],
+  }));
+}
 
-const Particle = ({ config }: { config: typeof particles[0] }) => {
+interface ParticleConfig {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  duration: number;
+  delay: number;
+  color: string;
+}
+
+const Particle = ({ config }: { config: ParticleConfig }) => {
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(0);
+  const bgConfig = homeBackgroundConfig.particles;
 
   useEffect(() => {
-    // Vertical movement (floating up)
+    const movement = bgConfig.direction === 'up' ? -100 : 
+                    bgConfig.direction === 'down' ? 100 :
+                    Math.random() > 0.5 ? -100 : 100;
+    
+    // Vertical movement
     translateY.value = withDelay(
       config.delay,
       withRepeat(
-        withTiming(-100, {
+        withTiming(movement, {
           duration: config.duration,
           easing: Easing.linear,
         }),
@@ -47,8 +68,8 @@ const Particle = ({ config }: { config: typeof particles[0] }) => {
       config.delay,
       withRepeat(
         withSequence(
-          withTiming(0.6, { duration: config.duration * 0.2 }),
-          withTiming(0.6, { duration: config.duration * 0.6 }),
+          withTiming(bgConfig.maxOpacity, { duration: config.duration * 0.2 }),
+          withTiming(bgConfig.maxOpacity, { duration: config.duration * 0.6 }),
           withTiming(0, { duration: config.duration * 0.2 })
         ),
         -1,
@@ -65,6 +86,12 @@ const Particle = ({ config }: { config: typeof particles[0] }) => {
     opacity: opacity.value,
   }));
 
+  const glowStyle = bgConfig.enableGlow ? {
+    shadowColor: config.color,
+    shadowRadius: config.size * 2,
+    shadowOpacity: 0.8,
+  } : {};
+
   return (
     <Animated.View
       style={[
@@ -75,14 +102,15 @@ const Particle = ({ config }: { config: typeof particles[0] }) => {
           height: config.size,
           borderRadius: config.size / 2,
           backgroundColor: config.color,
-          shadowColor: config.color,
-          shadowRadius: config.size * 2,
-          shadowOpacity: 0.8,
+          ...glowStyle,
         },
       ]}
     />
   );
 };
+
+// Generate particles once outside the component
+const particles = generateParticles();
 
 export default function BackgroundParticles() {
   return (
