@@ -31,6 +31,7 @@ interface GameState {
   lastRoundResults: RoundResults | null;
   gameWinner: string | null;
   gameOverReason: string | null;
+  connectionError: boolean;
   
   actions: {
     setRoom: (code: string, role: PlayerRole, playerId: string) => void;
@@ -50,6 +51,7 @@ interface GameState {
     setRound: (round: number) => void;
     setLastRoundResults: (results: RoundResults | null) => void;
     setGameWinner: (winner: string | null, reason: string | null) => void;
+    setConnectionError: (error: boolean) => void;
     reset: () => void;
   };
 }
@@ -88,6 +90,7 @@ export const useGameState = create<GameState>((set) => ({
   lastRoundResults: null,
   gameWinner: null,
   gameOverReason: null,
+  connectionError: false,
   
   actions: {
     setRoom: (code, role, playerId) => set({ roomCode: code, playerRole: role, playerId }),
@@ -131,6 +134,7 @@ export const useGameState = create<GameState>((set) => ({
     setRound: (round) => set({ round }),
     setLastRoundResults: (results) => set({ lastRoundResults: results }),
     setGameWinner: (winner, reason) => set({ gameWinner: winner, gameOverReason: reason }),
+    setConnectionError: (error) => set({ connectionError: error }),
     reset: () => set({
       roomCode: null,
       playerRole: null,
@@ -150,6 +154,7 @@ export const useGameState = create<GameState>((set) => ({
       lastRoundResults: null,
       gameWinner: null,
       gameOverReason: null,
+      connectionError: false,
     }),
   },
 }));

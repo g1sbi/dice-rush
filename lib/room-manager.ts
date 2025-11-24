@@ -68,6 +68,12 @@ class RoomManager {
   private isRoundPrepared: boolean = false;
   private hasRolledDice: boolean = false;
   private isLeaving: boolean = false;
+  private lastErrorStatus: string | null = null;
+  private lastErrorTime: number = 0;
+  private isHandlingError: boolean = false;
+  private retryAttempts: number = 0;
+  private maxRetryAttempts: number = 3;
+  private retryTimeout: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Generates a random 6-digit room code.
@@ -219,9 +225,16 @@ class RoomManager {
    * @param role - The player role
    */
   private async handleSubscriptionStatus(status: string, role: 'host' | 'guest'): Promise<void> {
-    logger.debug('RoomManager', `Subscription status changed: ${status}`);
+    logger.debug('RoomManager', `Subscription status changed: ${status} | Room: ${this.roomCode} | Role: ${role}`);
     
     if (status === 'SUBSCRIBED') {
+      this.retryAttempts = 0;
+      this.lastErrorStatus = null;
+      this.isHandlingError = false;
+      
+      const { actions } = useGameState.getState();
+      actions.setConnectionError(false);
+      
       try {
         await this.channel?.track({
           playerId: this.playerId,
@@ -233,9 +246,9 @@ class RoomManager {
         logger.error('RoomManager', 'Error tracking presence', trackError);
       }
     } else if (status === 'CHANNEL_ERROR' && !this.isLeaving) {
-      logger.error('RoomManager', 'Channel error occurred');
+      this.handleChannelError(status, role);
     } else if (status === 'TIMED_OUT' && !this.isLeaving) {
-      logger.error('RoomManager', 'Channel subscription timed out');
+      this.handleChannelError(status, role);
     } else if (status === 'CLOSED') {
       if (this.isLeaving) {
         logger.debug('RoomManager', 'Channel closed (expected during leave)');
@@ -243,6 +256,105 @@ class RoomManager {
         logger.error('RoomManager', 'Channel closed unexpectedly');
       }
     }
+  }
+
+  /**
+   * Handles channel errors with debouncing and recovery logic.
+   * 
+   * @param status - The error status
+   * @param role - The player role
+   */
+  private handleChannelError(status: string, role: 'host' | 'guest'): void {
+    const now = Date.now();
+    const timeSinceLastError = now - this.lastErrorTime;
+    const DEBOUNCE_MS = 1000;
+
+    if (this.isHandlingError) {
+      logger.debug('RoomManager', `Error already being handled, ignoring duplicate error: ${status}`);
+      return;
+    }
+
+    if (this.lastErrorStatus === status && timeSinceLastError < DEBOUNCE_MS) {
+      logger.debug('RoomManager', `Debouncing error: ${status} (${timeSinceLastError}ms since last)`);
+      return;
+    }
+
+    this.lastErrorStatus = status;
+    this.lastErrorTime = now;
+    this.isHandlingError = true;
+
+    logger.error('RoomManager', `Channel error occurred | Status: ${status} | Room: ${this.roomCode} | Role: ${role} | Attempt: ${this.retryAttempts + 1}/${this.maxRetryAttempts}`);
+
+    if (this.retryAttempts < this.maxRetryAttempts) {
+      this.attemptErrorRecovery(role);
+    } else {
+      this.handleMaxRetriesReached(role);
+    }
+  }
+
+  /**
+   * Attempts to recover from channel error by resubscribing.
+   * 
+   * @param role - The player role
+   */
+  private attemptErrorRecovery(role: 'host' | 'guest'): void {
+    if (this.isLeaving || !this.roomCode || !this.channel) {
+      this.isHandlingError = false;
+      return;
+    }
+
+    this.retryAttempts++;
+    const delay = Math.min(1000 * Math.pow(2, this.retryAttempts - 1), 4000);
+
+    logger.debug('RoomManager', `Attempting error recovery in ${delay}ms | Attempt: ${this.retryAttempts}/${this.maxRetryAttempts}`);
+
+    this.retryTimeout = setTimeout(async () => {
+      if (this.isLeaving || !this.roomCode) {
+        this.isHandlingError = false;
+        return;
+      }
+
+      try {
+        logger.debug('RoomManager', `Retrying channel subscription | Room: ${this.roomCode} | Role: ${role}`);
+        
+        if (this.channel) {
+          await this.channel.unsubscribe();
+        }
+
+        this.channel = supabase.channel(`room:${this.roomCode}`, {
+          config: {
+            presence: {
+              key: this.playerId,
+            },
+          },
+        });
+
+        this.setupChannelHandlers(role);
+        this.isHandlingError = false;
+      } catch (recoveryError) {
+        logger.error('RoomManager', 'Error during recovery attempt', recoveryError);
+        this.isHandlingError = false;
+        
+        if (this.retryAttempts < this.maxRetryAttempts) {
+          this.attemptErrorRecovery(role);
+        } else {
+          this.handleMaxRetriesReached(role);
+        }
+      }
+    }, delay);
+  }
+
+  /**
+   * Handles the case when max retry attempts have been reached.
+   * 
+   * @param role - The player role
+   */
+  private handleMaxRetriesReached(role: 'host' | 'guest'): void {
+    logger.error('RoomManager', `Max retry attempts reached | Room: ${this.roomCode} | Role: ${role}`);
+    this.isHandlingError = false;
+    
+    const { actions } = useGameState.getState();
+    actions.setConnectionError(true);
   }
 
   /**
@@ -287,10 +399,15 @@ class RoomManager {
       this.scores = {};
       this.bets = {};
       this.isRoundPrepared = false;
+      this.lastErrorStatus = null;
+      this.lastErrorTime = 0;
+      this.isHandlingError = false;
+      this.retryAttempts = 0;
 
       const { playerId, actions } = useGameState.getState();
       this.playerId = playerId;
       this.scores[this.playerId] = gameConfig.INITIAL_SCORE;
+      actions.setConnectionError(false);
       
       logger.debug('RoomManager', `Room created | Initial dice: ${this.currentDice} | PlayerId: ${this.playerId}`);
 
@@ -326,10 +443,15 @@ class RoomManager {
       this.isHost = false;
       this.hasGameStarted = false;
       this.isRoundPrepared = false;
+      this.lastErrorStatus = null;
+      this.lastErrorTime = 0;
+      this.isHandlingError = false;
+      this.retryAttempts = 0;
 
-      const { playerId } = useGameState.getState();
+      const { playerId, actions } = useGameState.getState();
       this.playerId = playerId;
       this.scores[this.playerId] = gameConfig.INITIAL_SCORE;
+      actions.setConnectionError(false);
       
       logger.debug('RoomManager', `Room code set: ${this.roomCode} | PlayerId: ${this.playerId}`);
 
@@ -1117,6 +1239,11 @@ class RoomManager {
     this.isLeaving = true;
     this.clearTimer();
     
+    if (this.retryTimeout) {
+      clearTimeout(this.retryTimeout);
+      this.retryTimeout = null;
+    }
+    
     if (this.channel) {
       await this.channel.unsubscribe();
       this.channel = null;
@@ -1128,7 +1255,14 @@ class RoomManager {
     this.hasGameStarted = false;
     this.bets = {};
     this.scores = {};
+    this.lastErrorStatus = null;
+    this.lastErrorTime = 0;
+    this.isHandlingError = false;
+    this.retryAttempts = 0;
     this.isLeaving = false;
+    
+    const { actions } = useGameState.getState();
+    actions.setConnectionError(false);
     
     logger.debug('RoomManager', 'Room left successfully');
   }
