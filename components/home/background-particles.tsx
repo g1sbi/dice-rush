@@ -1,5 +1,6 @@
-import { homeBackgroundConfig } from '@/lib/home-background-config';
-import React, { useEffect, useRef } from 'react';
+import { getHomeBackgroundConfig } from '@/lib/home-background-config';
+import { useTheme } from '@/lib/theme-context';
+import React, { useEffect, useMemo } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -14,8 +15,7 @@ import Animated, {
 const { width, height } = Dimensions.get('window');
 
 // Generate random properties for particles using config
-function generateParticles() {
-  const config = homeBackgroundConfig.particles;
+function generateParticles(config: ReturnType<typeof getHomeBackgroundConfig>['particles']) {
   const [minSize, maxSize] = config.sizeRange;
   const [minSpeed, maxSpeed] = config.speedRange;
   
@@ -40,20 +40,19 @@ interface ParticleConfig {
   color: string;
 }
 
-const Particle = ({ config, isAnimating = false }: { config: ParticleConfig; isAnimating?: boolean }) => {
+const Particle = ({ config, isAnimating = false, maxOpacity, enableGlow, direction }: { config: ParticleConfig; isAnimating?: boolean; maxOpacity: number; enableGlow: boolean; direction: 'up' | 'down' | 'random' }) => {
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(0);
-  const bgConfig = homeBackgroundConfig.particles;
-  const isAnimatingRef = useRef(isAnimating);
+  const isAnimatingShared = useSharedValue(isAnimating);
 
-  // Update ref when isAnimating changes
+  // Update shared value when isAnimating changes
   useEffect(() => {
-    isAnimatingRef.current = isAnimating;
+    isAnimatingShared.value = isAnimating;
   }, [isAnimating]);
 
   useEffect(() => {
-    const movement = bgConfig.direction === 'up' ? -100 : 
-                    bgConfig.direction === 'down' ? 100 :
+    const movement = direction === 'up' ? -100 : 
+                    direction === 'down' ? 100 :
                     Math.random() > 0.5 ? -100 : 100;
     
     // Vertical movement - start animation once
@@ -74,20 +73,20 @@ const Particle = ({ config, isAnimating = false }: { config: ParticleConfig; isA
       config.delay,
       withRepeat(
         withSequence(
-          withTiming(bgConfig.maxOpacity, { duration: config.duration * 0.2 }),
-          withTiming(bgConfig.maxOpacity, { duration: config.duration * 0.6 }),
+          withTiming(maxOpacity, { duration: config.duration * 0.2 }),
+          withTiming(maxOpacity, { duration: config.duration * 0.6 }),
           withTiming(0, { duration: config.duration * 0.2 })
         ),
         -1,
         false
       )
     );
-  }, []); // Run once on mount
+  }, [maxOpacity]); // Regenerate when maxOpacity changes
 
   // Adjust opacity based on isAnimating state without recreating animations
   const style = useAnimatedStyle(() => {
     const baseOpacity = opacity.value;
-    const finalOpacity = isAnimatingRef.current ? baseOpacity * 0.5 : baseOpacity;
+    const finalOpacity = isAnimatingShared.value ? baseOpacity * 0.5 : baseOpacity;
     
     return {
     transform: [
@@ -100,7 +99,7 @@ const Particle = ({ config, isAnimating = false }: { config: ParticleConfig; isA
 
 
   // Disable glow during animation for better performance
-  const glowStyle = (bgConfig.enableGlow && !isAnimating) ? {
+  const glowStyle = (enableGlow && !isAnimating) ? {
     shadowColor: config.color,
     shadowRadius: config.size * 2,
     shadowOpacity: 0.8,
@@ -124,14 +123,21 @@ const Particle = ({ config, isAnimating = false }: { config: ParticleConfig; isA
   );
 };
 
-// Generate particles once outside the component
-const particles = generateParticles();
-
 interface BackgroundParticlesProps {
   isAnimating?: boolean; // When true, reduce effects for performance
 }
 
 export default function BackgroundParticles({ isAnimating = false }: BackgroundParticlesProps) {
+  const { theme } = useTheme();
+  const config = getHomeBackgroundConfig(theme);
+  const particlesConfig = config.particles;
+  
+  // Regenerate particles when theme changes
+  const particles = useMemo(
+    () => generateParticles(particlesConfig),
+    [theme]
+  );
+  
   // Reduce visible particles during animation for performance
   const visibleParticles = isAnimating 
     ? particles.filter((_, i) => i % 2 === 0) // Show every other particle
@@ -144,7 +150,14 @@ export default function BackgroundParticles({ isAnimating = false }: BackgroundP
       renderToHardwareTextureAndroid={true}
       shouldRasterizeIOS={true}>
       {visibleParticles.map((p) => (
-        <Particle key={p.id} config={p} isAnimating={isAnimating} />
+        <Particle 
+          key={p.id} 
+          config={p} 
+          isAnimating={isAnimating}
+          maxOpacity={particlesConfig.maxOpacity}
+          enableGlow={particlesConfig.enableGlow}
+          direction={particlesConfig.direction}
+        />
       ))}
     </View>
   );

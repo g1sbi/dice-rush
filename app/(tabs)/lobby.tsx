@@ -11,11 +11,12 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { colors } from '@/lib/home-background-config';
+import { useTheme } from '@/lib/theme-context';
 import { roomManager } from '@/lib/room-manager';
 import { useGameState } from '@/lib/game-state';
 
 export default function LobbyScreen() {
+  const { colors } = useTheme();
   const router = useRouter();
   const { roomCode, opponentId, playerRole, connectionError, actions } = useGameState();
   const [countdown, setCountdown] = useState<number | null>(null);

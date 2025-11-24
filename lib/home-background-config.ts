@@ -116,17 +116,21 @@ export const colorPalettes: Record<ColorPaletteName, ColorPalette> = {
   },
 };
 
-// ==================== ACTIVE COLOR PALETTE SELECTOR ====================
-// Change this to switch between color palettes
-// Options: 'cyan-magenta', 'red-orange', 'yellow-gold', 'green-emerald', 
-//          'blue-purple', 'black-white', 'pink-rose', 'neon-cyber'
-export const activeColorPalette: ColorPaletteName = 'red-orange';
+// ==================== THEME HELPER FUNCTIONS ====================
 
-// Get the active palette colors
-export const colors = colorPalettes[activeColorPalette];
+/**
+ * Get a color palette by theme name
+ */
+export function getColorPalette(theme: ColorPaletteName): ColorPalette {
+  return colorPalettes[theme];
+}
 
-// Helper function to get config with current colors
-function getConfig() {
+/**
+ * Get home background config for a specific theme
+ */
+export function getHomeBackgroundConfig(theme: ColorPaletteName) {
+  const colors = colorPalettes[theme];
+  
   return {
     // ==================== BACKGROUND SELECTOR ====================
     
@@ -280,8 +284,15 @@ function getConfig() {
   };
 }
 
-export const homeBackgroundConfig = getConfig();
+// Default theme for backward compatibility
+const DEFAULT_THEME: ColorPaletteName = 'black-white';
+
+// Default config using default theme (for backward compatibility)
+export const homeBackgroundConfig = getHomeBackgroundConfig(DEFAULT_THEME);
+
+// Default colors export (for backward compatibility - use theme context instead)
+export const colors = colorPalettes[DEFAULT_THEME];
 
 // Type export for TypeScript autocomplete
-export type HomeBackgroundConfig = typeof homeBackgroundConfig;
+export type HomeBackgroundConfig = ReturnType<typeof getHomeBackgroundConfig>;
 

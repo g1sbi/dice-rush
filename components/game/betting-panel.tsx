@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import type { Prediction } from '@/lib/game-logic';
 import { EDGE_CASE_DICE } from '@/lib/game-constants';
-import { colors } from '@/lib/home-background-config';
+import { useTheme } from '@/lib/theme-context';
 import { gameConfig } from '@/lib/game-config';
 
 interface BettingPanelProps {
@@ -15,6 +15,7 @@ interface BettingPanelProps {
 }
 
 export default function BettingPanel({ maxAmount, onBet, disabled = false, locked = false, currentDice }: BettingPanelProps) {
+  const { colors } = useTheme();
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   
   useEffect(() => {

@@ -1,9 +1,10 @@
 import Background from '@/components/home/background';
 import GameTitle from '@/components/home/game-title';
 import HomeDice from '@/components/home/home-dice';
+import ThemeMenu from '@/components/ui/theme-menu';
 import { getVersionString } from '@/constants/app-info';
 import { gameConfig } from '@/lib/game-config';
-import { colors } from '@/lib/home-background-config';
+import { useTheme } from '@/lib/theme-context';
 import { useGameState } from '@/lib/game-state';
 import { logger } from '@/lib/logger';
 import { roomManager } from '@/lib/room-manager';
@@ -20,6 +21,7 @@ export default function HomeScreen() {
   const [isJoining, setIsJoining] = useState(false);
   const [roomCodeError, setRoomCodeError] = useState<string | null>(null);
   const { actions, playerId } = useGameState();
+  const { colors } = useTheme();
 
   /**
    * Sanitizes room code input by removing non-numeric characters and limiting to 6 digits.
@@ -109,6 +111,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Background />
+      <ThemeMenu />
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

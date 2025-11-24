@@ -1,4 +1,5 @@
-import { homeBackgroundConfig } from '@/lib/home-background-config';
+import { getHomeBackgroundConfig } from '@/lib/home-background-config';
+import { useTheme } from '@/lib/theme-context';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import BackgroundGradientWaves from './background-gradient-waves';
@@ -11,7 +12,9 @@ interface BackgroundProps {
 // Background selector component that renders the appropriate background
 // based on the config
 export default function Background({ isAnimating = false }: BackgroundProps) {
-  const { backgroundType, backgroundColor } = homeBackgroundConfig;
+  const { theme } = useTheme();
+  const config = getHomeBackgroundConfig(theme);
+  const { backgroundType, backgroundColor } = config;
 
   return (
     <View 

@@ -1,9 +1,10 @@
 import { APP_INFO } from '@/constants/app-info';
-import { colors } from '@/lib/home-background-config';
+import { useTheme } from '@/lib/theme-context';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 export default function GameTitle() {
+  const { colors } = useTheme();
   // Convert hex to rgba for shadow
   const hexToRgba = (hex: string, alpha: number) => {
     const r = parseInt(hex.slice(1, 3), 16);
