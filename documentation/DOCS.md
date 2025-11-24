@@ -103,6 +103,7 @@ Zustand store managing all game state.
 - `isRushRound`: Whether current round is a rush round (5-second timer)
 - `winStreak`: Consecutive wins
 - `lastRoundResults`: Results from last round
+- `connectionError`: Whether there is a connection error (triggers UI prompts for retry/leave)
 
 **Actions:**
 
@@ -112,6 +113,7 @@ Zustand store managing all game state.
 - `setGamePhase()`: Transition between phases
 - `setRushRound()`: Set rush round status
 - `updateScores()`: Update point totals
+- `setConnectionError()`: Set connection error state
 - `reset()`: Clear all state
 
 ### 3. Game Logic (`lib/game-logic.ts`)
@@ -320,6 +322,12 @@ Singleton class managing room lifecycle and real-time communication.
 - `hasSubscribed`: Tracks whether channel has successfully reached SUBSCRIBED status
 - `isValidatingRoom`: Flag set during room join validation to suppress expected error logs
 - `subscriptionResolve`: Promise resolver for waiting on channel subscription
+- `lastErrorStatus`: Last channel error status for debouncing
+- `lastErrorTime`: Timestamp of last error for debouncing
+- `isHandlingError`: Flag to prevent concurrent error handling
+- `retryAttempts`: Current number of retry attempts
+- `maxRetryAttempts`: Maximum retry attempts (default: 3)
+- `retryTimeout`: Timeout handle for retry attempts
 
 **Message Types:**
 
@@ -357,6 +365,18 @@ Singleton class managing room lifecycle and real-time communication.
 - Checks for active host presence (up to 3 seconds)
 - Returns `false` if room doesn't exist or host not found
 - Prevents guests from creating rooms by entering random codes
+
+**Error Handling and Recovery:**
+
+- Automatic retry mechanism for channel connection errors
+- Debouncing: Errors within 1 second are debounced to prevent spam
+- Exponential backoff: Retry delays increase exponentially (1s, 2s, 4s max)
+- Maximum retries: Up to 3 automatic retry attempts before giving up
+- Error suppression: Expected errors during room validation are suppressed (logged as debug)
+- Connection error state: After max retries, sets `connectionError` in game state, triggering UI prompts
+- Recovery process: Unsubscribes and resubscribes to channel with fresh handlers
+- Error types handled: `CHANNEL_ERROR` and `TIMED_OUT` statuses trigger recovery
+- Smart error detection: Only handles errors after successful subscription; transient errors before subscription are logged but not retried
 
 ## Component Documentation
 
