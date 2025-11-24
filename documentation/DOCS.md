@@ -306,8 +306,8 @@ Singleton class managing room lifecycle and real-time communication.
 
 **Key Methods:**
 
-- `createRoom()`: Host creates new room, generates 6-digit code
-- `joinRoom(code)`: Guest joins existing room
+- `createRoom()`: Host creates new room, generates 6-digit code. Waits for successful channel subscription before returning.
+- `joinRoom(code)`: Guest joins existing room. Validates room exists by checking for active host presence. Returns `false` if room doesn't exist.
 - `lockBet(amount, prediction)`: Submit bet, broadcast to opponent
 - `leaveRoom()`: Cleanup and disconnect
 - `forceResolve()`: (Host only) Called when timer expires, creates timeout bets for players who didn't bet and rolls dice
@@ -317,6 +317,9 @@ Singleton class managing room lifecycle and real-time communication.
 
 - `hasRolledDice`: Prevents double dice rolls in the same round. Set to `true` when `rollDice()` is called, reset to `false` at the start of each new round
 - `isRoundPrepared`: Prevents double execution of `prepareRoundState()` when both `new-round` and `timer-sync` messages arrive
+- `hasSubscribed`: Tracks whether channel has successfully reached SUBSCRIBED status
+- `isValidatingRoom`: Flag set during room join validation to suppress expected error logs
+- `subscriptionResolve`: Promise resolver for waiting on channel subscription
 
 **Message Types:**
 
@@ -340,11 +343,20 @@ Singleton class managing room lifecycle and real-time communication.
 
 **Guest Responsibilities:**
 
-- Join room via code
+- Join room via code (validates room exists before joining)
+- Wait for channel subscription before validating host presence
 - Submit bets
 - Receive and display updates
 - Run local timer (synchronized with host)
 - Wait for timeout resolution: When timer expires, do not call `lockBet(0)` - wait for `dice-result` from HOST
+
+**Room Validation:**
+
+- `joinRoom()` validates that a room exists before allowing join
+- Waits up to 5 seconds for channel subscription
+- Checks for active host presence (up to 3 seconds)
+- Returns `false` if room doesn't exist or host not found
+- Prevents guests from creating rooms by entering random codes
 
 ## Component Documentation
 
@@ -547,8 +559,8 @@ Full-screen results display with animations.
 
 ```
 Home Screen
-├── Host: createRoom() → Generate code → Navigate to Lobby
-└── Guest: joinRoom(code) → Validate code → Navigate to Lobby
+├── Host: createRoom() → Wait for subscription → Navigate to Lobby
+└── Guest: joinRoom(code) → Wait for subscription → Validate host exists → Navigate to Lobby (or show error if room not found)
 ```
 
 **Lobby Phase:**

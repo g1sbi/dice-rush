@@ -9,13 +9,14 @@ import { roomManager } from '@/lib/room-manager';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [roomCode, setRoomCode] = useState('');
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
   const { actions, playerId } = useGameState();
 
   const handleHostGame = async () => {
@@ -41,6 +42,7 @@ export default function HomeScreen() {
     }
 
     try {
+      setIsJoining(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const success = await roomManager.joinRoom(roomCode);
       
@@ -48,11 +50,13 @@ export default function HomeScreen() {
         actions.setRoom(roomCode, 'guest', playerId);
         router.push('/lobby');
       } else {
-        Alert.alert('Error', 'Failed to join room. Please check the code and try again.');
+        Alert.alert('Room Not Found', 'This room does not exist. Please check the code and try again.');
       }
     } catch (error) {
       logger.error('HomeScreen', 'Exception during join', error);
       Alert.alert('Error', 'Failed to join room. Please try again.');
+    } finally {
+      setIsJoining(false);
     }
   };
 
@@ -91,10 +95,22 @@ export default function HomeScreen() {
                 maxLength={gameConfig.ROOM_CODE_LENGTH}
                 keyboardType="number-pad"
                 returnKeyType="done"
-                onSubmitEditing={handleJoinGame}
+                onSubmitEditing={isJoining ? undefined : handleJoinGame}
+                editable={!isJoining}
               />
-              <TouchableOpacity style={styles.joinButton} onPress={handleJoinGame}>
-                <Text style={styles.joinButtonText}>JOIN GAME</Text>
+              <TouchableOpacity 
+                style={[styles.joinButton, isJoining && styles.joinButtonDisabled]} 
+                onPress={handleJoinGame}
+                disabled={isJoining}
+              >
+                {isJoining ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color="#FF00FF" />
+                    <Text style={[styles.joinButtonText, { marginLeft: 8 }]}>LOOKING FOR BRO...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.joinButtonText}>JOIN GAME</Text>
+                )}
               </TouchableOpacity>
             </View>
             <Text style={styles.version}>{getVersionString()}</Text>
@@ -207,5 +223,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 1.5,
+  },
+  joinButtonDisabled: {
+    opacity: 0.5,
+    borderColor: '#666',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

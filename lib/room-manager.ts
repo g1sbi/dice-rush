@@ -1,6 +1,6 @@
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { type GameOverReason } from './game-constants';
 import { gameConfig } from './game-config';
+import { type GameOverReason } from './game-constants';
 import type { Bet, Prediction, RoundResults } from './game-logic';
 import { calculateRoundResults, checkWinConditions } from './game-logic';
 import { useGameState } from './game-state';
@@ -68,6 +68,9 @@ class RoomManager {
   private isRoundPrepared: boolean = false;
   private hasRolledDice: boolean = false;
   private isLeaving: boolean = false;
+  private isValidatingRoom: boolean = false;
+  private hasSubscribed: boolean = false;
+  private subscriptionResolve: ((value: boolean) => void) | null = null;
 
   /**
    * Generates a random 6-digit room code.
@@ -121,6 +124,72 @@ class RoomManager {
   }
 
   /**
+   * Waits for a host to appear in the room's presence state.
+   * Used during room join to validate that the room exists and has an active host.
+   * 
+   * @param timeoutMs - Maximum time to wait in milliseconds
+   * @returns True if host is found, false if timeout
+   */
+  private async waitForHost(timeoutMs: number): Promise<boolean> {
+    logger.debug('RoomManager', `Waiting for host presence (timeout: ${timeoutMs}ms)`);
+    
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      
+      const checkInterval = setInterval(() => {
+        const hostPresence = this.getHostPresence();
+        
+        if (hostPresence) {
+          logger.debug('RoomManager', 'Host found in presence state');
+          clearInterval(checkInterval);
+          resolve(true);
+        } else if (Date.now() - startTime >= timeoutMs) {
+          logger.debug('RoomManager', 'Timeout waiting for host - room does not exist');
+          clearInterval(checkInterval);
+          resolve(false);
+        }
+      }, 200); // Check every 200ms
+    });
+  }
+
+  /**
+   * Waits for the channel to reach SUBSCRIBED status.
+   * 
+   * @param timeoutMs - Maximum time to wait in milliseconds
+   * @returns Promise resolving to true if subscribed, false if timeout/error
+   */
+  private waitForSubscription(timeoutMs: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      // If already subscribed, resolve immediately
+      if (this.hasSubscribed) {
+        resolve(true);
+        return;
+      }
+      
+      // Store resolve function for handleSubscriptionStatus to call
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      const resolveWrapper = (value: boolean) => {
+        if (this.subscriptionResolve === resolveWrapper) {
+          this.subscriptionResolve = null;
+          if (timeout) clearTimeout(timeout);
+          resolve(value);
+        }
+      };
+      
+      this.subscriptionResolve = resolveWrapper;
+      
+      // Set timeout
+      timeout = setTimeout(() => {
+        if (this.subscriptionResolve === resolveWrapper) {
+          this.subscriptionResolve = null;
+          logger.debug('RoomManager', 'Subscription timeout - channel did not connect');
+          resolve(false);
+        }
+      }, timeoutMs);
+    });
+  }
+
+  /**
    * Handles presence sync events when players join/leave.
    * Also checks for timer updates from host (guest only).
    * 
@@ -136,7 +205,10 @@ class RoomManager {
       if (opponentId) {
         const { actions } = useGameState.getState();
         actions.setOpponent(opponentId);
-        this.scores[opponentId] = gameConfig.INITIAL_SCORE;
+        // Only initialize score if it doesn't exist (don't reset existing scores)
+        if (!this.scores[opponentId]) {
+          this.scores[opponentId] = gameConfig.INITIAL_SCORE;
+        }
         logger.debug('RoomManager', `Two players detected | OpponentId: ${opponentId}`);
         
         // Host: Only start game once when opponent first joins
@@ -153,6 +225,9 @@ class RoomManager {
       }
     } else if (players.length === 1) {
       logger.debug('RoomManager', 'Waiting for opponent');
+    } else if (players.length === 0) {
+      // Expected during initial presence sync before own presence is tracked
+      logger.debug('RoomManager', 'No players in presence yet (initial sync)');
     } else {
       logger.warn('RoomManager', `Unexpected player count: ${players.length}`);
     }
@@ -222,6 +297,14 @@ class RoomManager {
     logger.debug('RoomManager', `Subscription status changed: ${status}`);
     
     if (status === 'SUBSCRIBED') {
+      this.hasSubscribed = true;
+      
+      // Resolve subscription promise if waiting
+      if (this.subscriptionResolve) {
+        this.subscriptionResolve(true);
+        this.subscriptionResolve = null;
+      }
+      
       try {
         await this.channel?.track({
           playerId: this.playerId,
@@ -233,12 +316,30 @@ class RoomManager {
         logger.error('RoomManager', 'Error tracking presence', trackError);
       }
     } else if (status === 'CHANNEL_ERROR' && !this.isLeaving) {
-      logger.error('RoomManager', 'Channel error occurred');
+      // Suppress errors during room validation (expected when room doesn't exist)
+      if (this.isValidatingRoom) {
+        logger.debug('RoomManager', 'Channel error during validation (room may not exist)');
+      } else if (!this.hasSubscribed) {
+        // Transient connection errors before subscription are common and usually resolve
+        logger.debug('RoomManager', 'Channel error during connection (may resolve automatically)');
+      } else {
+        // Error after successful subscription indicates a real problem
+        logger.error('RoomManager', 'Channel error occurred after successful subscription');
+      }
     } else if (status === 'TIMED_OUT' && !this.isLeaving) {
-      logger.error('RoomManager', 'Channel subscription timed out');
+      // Suppress errors during room validation
+      if (this.isValidatingRoom) {
+        logger.debug('RoomManager', 'Channel timeout during validation (room may not exist)');
+      } else if (!this.hasSubscribed) {
+        // Timeout before subscription is a connection issue, not necessarily an error
+        logger.debug('RoomManager', 'Channel timeout during connection (may retry automatically)');
+      } else {
+        // Timeout after successful subscription indicates a real problem
+        logger.error('RoomManager', 'Channel subscription timed out after successful connection');
+      }
     } else if (status === 'CLOSED') {
-      if (this.isLeaving) {
-        logger.debug('RoomManager', 'Channel closed (expected during leave)');
+      if (this.isLeaving || this.isValidatingRoom) {
+        logger.debug('RoomManager', 'Channel closed (expected during leave or validation)');
       } else {
         logger.error('RoomManager', 'Channel closed unexpectedly');
       }
@@ -276,12 +377,22 @@ class RoomManager {
    */
   async createRoom(): Promise<string> {
     try {
+      // Clean up any existing channel first
+      if (this.channel) {
+        logger.debug('RoomManager', 'Cleaning up existing channel before creating new room');
+        this.isLeaving = true;
+        await this.channel.unsubscribe();
+        this.channel = null;
+        this.isLeaving = false;
+      }
+      
       const code = this.generateRoomCode();
       logger.debug('RoomManager', `Creating room with code: ${code}`);
       
       this.roomCode = code;
       this.isHost = true;
       this.hasGameStarted = false;
+      this.hasSubscribed = false;
       this.currentDice = Math.floor(Math.random() * (gameConfig.DICE_MAX - gameConfig.DICE_MIN + 1)) + gameConfig.DICE_MIN;
       this.round = 0;
       this.scores = {};
@@ -304,6 +415,20 @@ class RoomManager {
 
       this.setupChannelHandlers('host');
 
+      logger.debug('RoomManager', 'Waiting for channel subscription...');
+      const subscribed = await this.waitForSubscription(5000); // 5 second timeout
+
+      if (!subscribed) {
+        logger.error('RoomManager', 'Failed to subscribe to channel');
+        if (this.channel) {
+          this.isLeaving = true; // Prevent CLOSED event from being logged as error
+          await this.channel.unsubscribe();
+          this.channel = null;
+          this.isLeaving = false;
+        }
+        throw new Error('Failed to connect to room. Please try again.');
+      }
+
       logger.debug('RoomManager', `Room creation complete, returning code: ${code}`);
       return code;
     } catch (error) {
@@ -314,18 +439,29 @@ class RoomManager {
 
   /**
    * Joins an existing game room as a guest player.
+   * Validates that the room exists by checking for an active host.
    * 
    * @param code - The 6-digit room code
-   * @returns True if join was successful, false otherwise
+   * @returns True if join was successful, false if room doesn't exist
    */
   async joinRoom(code: string): Promise<boolean> {
     try {
+      // Clean up any existing channel first
+      if (this.channel) {
+        logger.debug('RoomManager', 'Cleaning up existing channel before joining new room');
+        this.isLeaving = true;
+        await this.channel.unsubscribe();
+        this.channel = null;
+        this.isLeaving = false;
+      }
+      
       logger.debug('RoomManager', `Attempting to join room: ${code}`);
       
       this.roomCode = code;
       this.isHost = false;
       this.hasGameStarted = false;
       this.isRoundPrepared = false;
+      this.hasSubscribed = false;
 
       const { playerId } = useGameState.getState();
       this.playerId = playerId;
@@ -343,10 +479,52 @@ class RoomManager {
 
       this.setupChannelHandlers('guest');
 
-      logger.debug('RoomManager', 'Channel setup complete');
-      return true;
+      logger.debug('RoomManager', 'Waiting for channel subscription...');
+      const subscribed = await this.waitForSubscription(5000); // 5 second timeout
+
+      if (!subscribed) {
+        logger.debug('RoomManager', 'Failed to subscribe to channel');
+        if (this.channel) {
+          this.isLeaving = true; // Prevent CLOSED event from being logged as error
+          await this.channel.unsubscribe();
+          this.channel = null;
+          this.isLeaving = false;
+        }
+        this.roomCode = null;
+        return false;
+      }
+
+      logger.debug('RoomManager', 'Channel subscribed, validating host presence...');
+      
+      // Set validation flag to suppress expected errors during validation
+      this.isValidatingRoom = true;
+      
+      try {
+        // Wait for presence sync and verify host exists
+        const hostExists = await this.waitForHost(3000); // 3 second timeout
+        
+        if (!hostExists) {
+          logger.debug('RoomManager', 'No host found - room does not exist');
+          await this.channel.unsubscribe();
+          this.channel = null;
+          this.roomCode = null;
+          return false; // Room doesn't exist
+        }
+        
+        logger.debug('RoomManager', 'Host validated - join successful');
+        return true; // Host found, join successful
+      } finally {
+        // Reset validation flag
+        this.isValidatingRoom = false;
+      }
     } catch (error) {
       logger.error('RoomManager', 'Error joining room', error);
+      // Clean up on error
+      if (this.channel) {
+        await this.channel.unsubscribe();
+        this.channel = null;
+      }
+      this.roomCode = null;
       return false;
     }
   }
@@ -1129,6 +1307,9 @@ class RoomManager {
     this.bets = {};
     this.scores = {};
     this.isLeaving = false;
+    this.hasSubscribed = false;
+    this.isValidatingRoom = false;
+    this.subscriptionResolve = null;
     
     logger.debug('RoomManager', 'Room left successfully');
   }
