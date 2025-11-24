@@ -117,7 +117,11 @@ export const useGameState = create<GameState>((set) => ({
     lockBet: () => set({ betLocked: true }),
     unlockBet: () => set({ betLocked: false }),
     setTimeRemaining: (seconds) => {
-      logger.debug('GameState', `setTimeRemaining called | New: ${seconds}s`);
+      const current = useGameState.getState().timeRemaining;
+      // Only log when seconds value actually changes (reduces log spam)
+      if (Math.floor(current) !== Math.floor(seconds)) {
+        logger.debug('GameState', `setTimeRemaining called | New: ${seconds}s`);
+      }
       set({ timeRemaining: seconds });
     },
     setGamePhase: (phase) => set({ gamePhase: phase }),
