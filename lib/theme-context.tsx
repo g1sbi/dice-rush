@@ -4,7 +4,7 @@ import type { ColorPalette, ColorPaletteName } from './home-background-config';
 import { colorPalettes } from './home-background-config';
 
 const THEME_STORAGE_KEY = '@daice/theme';
-const DEFAULT_THEME: ColorPaletteName = 'black-white';
+const DEFAULT_THEME: ColorPaletteName = 'cyan-magenta';
 
 interface ThemeContextValue {
   theme: ColorPaletteName;

@@ -285,7 +285,7 @@ export function getHomeBackgroundConfig(theme: ColorPaletteName) {
 }
 
 // Default theme for backward compatibility
-const DEFAULT_THEME: ColorPaletteName = 'black-white';
+const DEFAULT_THEME: ColorPaletteName = 'cyan-magenta';
 
 // Default config using default theme (for backward compatibility)
 export const homeBackgroundConfig = getHomeBackgroundConfig(DEFAULT_THEME);
