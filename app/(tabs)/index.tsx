@@ -17,7 +17,47 @@ export default function HomeScreen() {
   const [roomCode, setRoomCode] = useState('');
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [roomCodeError, setRoomCodeError] = useState<string | null>(null);
   const { actions, playerId } = useGameState();
+
+  /**
+   * Sanitizes room code input by removing non-numeric characters and limiting to 6 digits.
+   * 
+   * @param input - The raw input string
+   * @returns Sanitized string containing only digits (max 6)
+   */
+  const sanitizeRoomCode = (input: string): string => {
+    return input.replace(/[^0-9]/g, '').slice(0, gameConfig.ROOM_CODE_LENGTH);
+  };
+
+  /**
+   * Handles room code input changes with real-time sanitization.
+   * 
+   * @param text - The input text
+   */
+  const handleRoomCodeChange = (text: string) => {
+    const sanitized = sanitizeRoomCode(text);
+    setRoomCode(sanitized);
+    // Clear error when user starts typing
+    if (roomCodeError) {
+      setRoomCodeError(null);
+    }
+  };
+
+  /**
+   * Validates room code when input loses focus.
+   */
+  const handleRoomCodeBlur = () => {
+    setIsInputFocused(false);
+    // Validate on blur if there's input but it's incomplete
+    if (roomCode.length > 0 && roomCode.length !== gameConfig.ROOM_CODE_LENGTH) {
+      setRoomCodeError('Room code must be 6 digits');
+      // Haptic feedback for invalid input
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } else {
+      setRoomCodeError(null);
+    }
+  };
 
   const handleHostGame = async () => {
     try {
@@ -37,9 +77,14 @@ export default function HomeScreen() {
     }
     
     if (roomCode.length !== gameConfig.ROOM_CODE_LENGTH) {
+      setRoomCodeError('Room code must be 6 digits');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Invalid Code', 'Please enter a 6-digit room code');
       return;
     }
+    
+    // Clear any existing errors before attempting join
+    setRoomCodeError(null);
 
     try {
       setIsJoining(true);
@@ -85,11 +130,11 @@ export default function HomeScreen() {
 
             <View style={styles.joinSection}>
               <TextInput
-                style={styles.codeInput}
+                style={[styles.codeInput, roomCodeError && styles.codeInputError]}
                 value={roomCode}
-                onChangeText={setRoomCode}
+                onChangeText={handleRoomCodeChange}
                 onFocus={() => setIsInputFocused(true)}
-                onBlur={() => setIsInputFocused(false)}
+                onBlur={handleRoomCodeBlur}
                 placeholder="Enter 6-digit code"
                 placeholderTextColor="#666"
                 maxLength={gameConfig.ROOM_CODE_LENGTH}
@@ -98,6 +143,9 @@ export default function HomeScreen() {
                 onSubmitEditing={isJoining ? undefined : handleJoinGame}
                 editable={!isJoining}
               />
+              {roomCodeError && (
+                <Text style={styles.errorText}>{roomCodeError}</Text>
+              )}
               <TouchableOpacity 
                 style={[styles.joinButton, isJoining && styles.joinButtonDisabled]} 
                 onPress={handleJoinGame}
@@ -203,6 +251,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+  },
+  codeInputError: {
+    borderColor: '#FF0000',
+    borderWidth: 2,
+    shadowColor: '#FF0000',
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  errorText: {
+    color: '#FF0000',
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   joinButton: {
     backgroundColor: 'transparent',
