@@ -14,6 +14,16 @@ interface BettingPanelProps {
   currentDice: number;
 }
 
+// Helper function to determine if a color is light or dark
+function isLightColor(hex: string): boolean {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // Calculate relative luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5;
+}
+
 export default function BettingPanel({ maxAmount, onBet, disabled = false, locked = false, currentDice }: BettingPanelProps) {
   const { colors } = useTheme();
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
@@ -23,6 +33,10 @@ export default function BettingPanel({ maxAmount, onBet, disabled = false, locke
   }, [currentDice]);
   
   const isEdgeCase = EDGE_CASE_DICE.includes(currentDice as typeof EDGE_CASE_DICE[number]);
+  
+  // Determine text color based on background color brightness
+  const primaryTextColor = isLightColor(colors.primary) ? '#000000' : '#FFFFFF';
+  const secondaryTextColor = isLightColor(colors.secondary) ? '#000000' : '#FFFFFF';
 
   const betAmounts = gameConfig.getBetAmounts();
   const quickBets = [
@@ -84,7 +98,7 @@ export default function BettingPanel({ maxAmount, onBet, disabled = false, locke
                 ]}
                 onPress={() => handlePrediction('4-or-higher')}
                 disabled={locked || disabled || selectedAmount === null}>
-                <Text style={styles.predictionButtonText}>4 OR HIGHER</Text>
+                <Text style={[styles.predictionButtonText, { color: primaryTextColor }]}>4 OR HIGHER</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -95,7 +109,7 @@ export default function BettingPanel({ maxAmount, onBet, disabled = false, locke
                 ]}
                 onPress={() => handlePrediction('3-or-lower')}
                 disabled={locked || disabled || selectedAmount === null}>
-                <Text style={styles.predictionButtonText}>3 OR LOWER</Text>
+                <Text style={[styles.predictionButtonText, { color: secondaryTextColor }]}>3 OR LOWER</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -108,7 +122,7 @@ export default function BettingPanel({ maxAmount, onBet, disabled = false, locke
                 ]}
                 onPress={() => handlePrediction('higher')}
                 disabled={locked || disabled || selectedAmount === null}>
-                <Text style={styles.predictionButtonText}>HIGHER</Text>
+                <Text style={[styles.predictionButtonText, { color: primaryTextColor }]}>HIGHER</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -119,7 +133,7 @@ export default function BettingPanel({ maxAmount, onBet, disabled = false, locke
                 ]}
                 onPress={() => handlePrediction('lower')}
                 disabled={locked || disabled || selectedAmount === null}>
-                <Text style={styles.predictionButtonText}>LOWER</Text>
+                <Text style={[styles.predictionButtonText, { color: secondaryTextColor }]}>LOWER</Text>
               </TouchableOpacity>
             </>
           )}
@@ -189,7 +203,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#2A2A2A',
   },
   predictionButtonText: {
-    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 1.5,
