@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import type { Prediction } from '@/lib/game-logic';
 import { EDGE_CASE_DICE } from '@/lib/game-constants';
+import { colors } from '@/lib/home-background-config';
 import { gameConfig } from '@/lib/game-config';
 
 interface BettingPanelProps {
@@ -77,7 +78,7 @@ export default function BettingPanel({ maxAmount, onBet, disabled = false, locke
               <TouchableOpacity
                 style={[
                   styles.predictionButton,
-                  styles.higherButton,
+                  { backgroundColor: colors.primary },
                   (locked || disabled || selectedAmount === null) && styles.predictionButtonDisabled,
                 ]}
                 onPress={() => handlePrediction('4-or-higher')}
@@ -88,7 +89,7 @@ export default function BettingPanel({ maxAmount, onBet, disabled = false, locke
               <TouchableOpacity
                 style={[
                   styles.predictionButton,
-                  styles.lowerButton,
+                  { backgroundColor: colors.secondary },
                   (locked || disabled || selectedAmount === null) && styles.predictionButtonDisabled,
                 ]}
                 onPress={() => handlePrediction('3-or-lower')}
@@ -101,7 +102,7 @@ export default function BettingPanel({ maxAmount, onBet, disabled = false, locke
               <TouchableOpacity
                 style={[
                   styles.predictionButton,
-                  styles.higherButton,
+                  { backgroundColor: colors.primary },
                   (locked || disabled || selectedAmount === null) && styles.predictionButtonDisabled,
                 ]}
                 onPress={() => handlePrediction('higher')}
@@ -112,7 +113,7 @@ export default function BettingPanel({ maxAmount, onBet, disabled = false, locke
               <TouchableOpacity
                 style={[
                   styles.predictionButton,
-                  styles.lowerButton,
+                  { backgroundColor: colors.secondary },
                   (locked || disabled || selectedAmount === null) && styles.predictionButtonDisabled,
                 ]}
                 onPress={() => handlePrediction('lower')}
@@ -181,12 +182,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  higherButton: {
-    backgroundColor: '#00D4FF',
-  },
-  lowerButton: {
-    backgroundColor: '#FF00FF',
   },
   predictionButtonDisabled: {
     opacity: 0.5,

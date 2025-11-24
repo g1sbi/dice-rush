@@ -1,3 +1,4 @@
+import Background from '@/components/home/background';
 import BettingPanel from '@/components/game/betting-panel';
 import BettingTimer from '@/components/game/betting-timer';
 import Dice from '@/components/game/dice-2d';
@@ -178,6 +179,7 @@ export default function GameScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Background isAnimating={false} />
       <View style={styles.content}>
         {gamePhase !== 'GAME_OVER' && (
           <TouchableOpacity style={styles.quitButtonTop} onPress={handleQuitPrompt}>
@@ -206,7 +208,7 @@ export default function GameScreen() {
 
         <View style={styles.diceSection}>
           <View style={styles.currentDice}>
-            <Dice value={currentDice} size={120} animated={gamePhase === 'REVEALING'} />
+            <Dice value={currentDice} size={120} animated={false} />
           </View>
           {showRushBadge && isRushRound && gamePhase === 'BETTING' && (
             <Animated.View style={[styles.rushBadge, { opacity: badgeOpacity }]}>
@@ -220,8 +222,6 @@ export default function GameScreen() {
                 onExpire={handleTimerExpire}
                 isRushRound={isRushRound}
               />
-            ) : gamePhase === 'REVEALING' ? (
-              <Text style={styles.rollingText}>Rolling...</Text>
             ) : null}
           </View>
         </View>
@@ -391,10 +391,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     flex: 0.3,
+    zIndex: 10, // Ensure dice section renders above background
   },
   currentDice: {
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10, // Ensure dice renders above background
   },
   timerContainer: {
     height: 70,

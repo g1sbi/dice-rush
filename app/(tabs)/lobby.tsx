@@ -1,3 +1,4 @@
+import Background from '@/components/home/background';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { colors } from '@/lib/home-background-config';
 import { roomManager } from '@/lib/room-manager';
 import { useGameState } from '@/lib/game-state';
 
@@ -115,6 +117,7 @@ export default function LobbyScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Background />
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Waiting Room</Text>
@@ -122,7 +125,7 @@ export default function LobbyScreen() {
 
         <View style={styles.roomCodeSection}>
           <Text style={styles.label}>Room Code</Text>
-          <Text style={styles.roomCode}>{roomCode}</Text>
+          <Text style={[styles.roomCode, { color: colors.primary }]}>{roomCode}</Text>
           <Text style={styles.hint}>Share this code with your opponent</Text>
         </View>
 
@@ -149,7 +152,7 @@ export default function LobbyScreen() {
 
         {countdown !== null && countdown > 0 && (
           <View style={styles.countdownContainer}>
-            <Text style={styles.countdown}>{countdown}</Text>
+            <Text style={[styles.countdown, { color: colors.primary }]}>{countdown}</Text>
           </View>
         )}
 
@@ -192,7 +195,6 @@ const styles = StyleSheet.create({
   roomCode: {
     fontSize: 64,
     fontWeight: 'bold',
-    color: '#00D4FF',
     letterSpacing: 8,
   },
   hint: {
@@ -235,7 +237,6 @@ const styles = StyleSheet.create({
   countdown: {
     fontSize: 96,
     fontWeight: 'bold',
-    color: '#00D4FF',
   },
   leaveButton: {
     paddingVertical: 12,

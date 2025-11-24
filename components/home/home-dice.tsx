@@ -7,6 +7,7 @@ import Animated, {
   Easing,
   cancelAnimation,
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
   withDelay,
   withRepeat,
@@ -56,9 +57,12 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
   const [diceValue, setDiceValue] = useState(1);
   const [isAnimating, setIsAnimating] = useState(false);
   
-  // Refs to track intervals
+  // Refs to track intervals and timeouts
   const valueChangeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const idleRippleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const valueChangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressTimeout1Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressTimeout2Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Function to change dice value
   // Cycle through all six dice faces sequentially (1→2→3→4→5→6→1...)
@@ -113,6 +117,11 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
 
   // Trigger value change ripple burst
   const performValueChangeRipple = () => {
+    // Clear any existing timeout
+    if (valueChangeTimeoutRef.current) {
+      clearTimeout(valueChangeTimeoutRef.current);
+    }
+    
     setIsAnimating(true);
     
     // Only create ripples if enabled
@@ -144,9 +153,10 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
     }
     
     // Change value at peak of first ripple
-    setTimeout(() => {
+    valueChangeTimeoutRef.current = setTimeout(() => {
       changeDiceValue();
       setIsAnimating(false);
+      valueChangeTimeoutRef.current = null;
     }, homeDiceConfig.valueRippleDuration * 0.5);
   };
 
@@ -268,20 +278,45 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
       if (idleRippleIntervalRef.current) {
         clearInterval(idleRippleIntervalRef.current);
       }
+      if (valueChangeTimeoutRef.current) {
+        clearTimeout(valueChangeTimeoutRef.current);
+      }
+      if (pressTimeout1Ref.current) {
+        clearTimeout(pressTimeout1Ref.current);
+      }
+      if (pressTimeout2Ref.current) {
+        clearTimeout(pressTimeout2Ref.current);
+      }
     };
   }, []);
 
+  // Derived values for wave calculations (only computed if distortion is enabled)
+  const wavePhaseDerived = useDerivedValue(() => {
+    if (!homeDiceConfig.enableWaveDistortion) return 0;
+    return wavePhase.value;
+  }, []);
+
+  const waveAmplitude = homeDiceConfig.enableWaveDistortion ? homeDiceConfig.waveAmplitude : 0;
+  const waveDistortion = homeDiceConfig.enableWaveDistortion ? homeDiceConfig.waveDistortion : 0;
+
   // Dice animated style with wave distortion
   const diceAnimatedStyle = useAnimatedStyle(() => {
+    // Skip wave calculations if distortion is disabled
+    if (!homeDiceConfig.enableWaveDistortion) {
+      return {
+        transform: [
+          { scale: diceScale.value },
+          { rotateZ: `${diceRotateZ.value}deg` },
+        ],
+      };
+    }
+
     // Calculate wave distortion based on phase
-    const phase = wavePhase.value;
-    const amplitude = homeDiceConfig.enableWaveDistortion ? homeDiceConfig.waveAmplitude : 0;
-    const distortion = homeDiceConfig.enableWaveDistortion ? homeDiceConfig.waveDistortion : 0;
-    
-    const waveSkewX = Math.sin(phase) * amplitude * 0.3; // Subtle for dice
-    const waveSkewY = Math.cos(phase) * amplitude * 0.3;
-    const waveScaleX = 1.0 + Math.cos(phase) * distortion * 0.3;
-    const waveScaleY = 1.0 - Math.cos(phase) * distortion * 0.3;
+    const phase = wavePhaseDerived.value;
+    const waveSkewX = Math.sin(phase) * waveAmplitude * 0.3; // Subtle for dice
+    const waveSkewY = Math.cos(phase) * waveAmplitude * 0.3;
+    const waveScaleX = 1.0 + Math.cos(phase) * waveDistortion * 0.3;
+    const waveScaleY = 1.0 - Math.cos(phase) * waveDistortion * 0.3;
     
     return {
       transform: [
@@ -298,14 +333,20 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
   // Ripple 1 animated style
   const ripple1Style = useAnimatedStyle(() => {
     const progress = (ripple1Scale.value - 1) / (homeDiceConfig.rippleExpandScale - 1);
-    const phase = wavePhase.value + progress * Math.PI * 2;
-    const amplitude = homeDiceConfig.enableWaveDistortion ? homeDiceConfig.waveAmplitude : 0;
-    const distortion = homeDiceConfig.enableWaveDistortion ? homeDiceConfig.waveDistortion : 0;
     
-    const skewX = Math.sin(phase) * amplitude;
-    const skewY = Math.cos(phase) * amplitude;
-    const scaleX = 1.0 + Math.cos(phase) * distortion;
-    const scaleY = 1.0 - Math.cos(phase) * distortion;
+    // Skip wave calculations if distortion is disabled
+    if (!homeDiceConfig.enableWaveDistortion) {
+      return {
+        transform: [{ scale: ripple1Scale.value }],
+        opacity: ripple1Opacity.value,
+      };
+    }
+    
+    const phase = wavePhaseDerived.value + progress * Math.PI * 2;
+    const skewX = Math.sin(phase) * waveAmplitude;
+    const skewY = Math.cos(phase) * waveAmplitude;
+    const scaleX = 1.0 + Math.cos(phase) * waveDistortion;
+    const scaleY = 1.0 - Math.cos(phase) * waveDistortion;
     
     return {
       transform: [
@@ -322,14 +363,20 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
   // Ripple 2 animated style
   const ripple2Style = useAnimatedStyle(() => {
     const progress = (ripple2Scale.value - 1) / (homeDiceConfig.rippleExpandScale - 1);
-    const phase = wavePhase.value + progress * Math.PI * 2 + Math.PI / 3;
-    const amplitude = homeDiceConfig.enableWaveDistortion ? homeDiceConfig.waveAmplitude : 0;
-    const distortion = homeDiceConfig.enableWaveDistortion ? homeDiceConfig.waveDistortion : 0;
     
-    const skewX = Math.sin(phase) * amplitude;
-    const skewY = Math.cos(phase) * amplitude;
-    const scaleX = 1.0 + Math.cos(phase) * distortion;
-    const scaleY = 1.0 - Math.cos(phase) * distortion;
+    // Skip wave calculations if distortion is disabled
+    if (!homeDiceConfig.enableWaveDistortion) {
+      return {
+        transform: [{ scale: ripple2Scale.value }],
+        opacity: ripple2Opacity.value,
+      };
+    }
+    
+    const phase = wavePhaseDerived.value + progress * Math.PI * 2 + Math.PI / 3;
+    const skewX = Math.sin(phase) * waveAmplitude;
+    const skewY = Math.cos(phase) * waveAmplitude;
+    const scaleX = 1.0 + Math.cos(phase) * waveDistortion;
+    const scaleY = 1.0 - Math.cos(phase) * waveDistortion;
     
     return {
       transform: [
@@ -346,14 +393,20 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
   // Ripple 3 animated style
   const ripple3Style = useAnimatedStyle(() => {
     const progress = (ripple3Scale.value - 1) / (homeDiceConfig.rippleExpandScale - 1);
-    const phase = wavePhase.value + progress * Math.PI * 2 + (Math.PI * 2) / 3;
-    const amplitude = homeDiceConfig.enableWaveDistortion ? homeDiceConfig.waveAmplitude : 0;
-    const distortion = homeDiceConfig.enableWaveDistortion ? homeDiceConfig.waveDistortion : 0;
     
-    const skewX = Math.sin(phase) * amplitude;
-    const skewY = Math.cos(phase) * amplitude;
-    const scaleX = 1.0 + Math.cos(phase) * distortion;
-    const scaleY = 1.0 - Math.cos(phase) * distortion;
+    // Skip wave calculations if distortion is disabled
+    if (!homeDiceConfig.enableWaveDistortion) {
+      return {
+        transform: [{ scale: ripple3Scale.value }],
+        opacity: ripple3Opacity.value,
+      };
+    }
+    
+    const phase = wavePhaseDerived.value + progress * Math.PI * 2 + (Math.PI * 2) / 3;
+    const skewX = Math.sin(phase) * waveAmplitude;
+    const skewY = Math.cos(phase) * waveAmplitude;
+    const scaleX = 1.0 + Math.cos(phase) * waveDistortion;
+    const scaleY = 1.0 - Math.cos(phase) * waveDistortion;
     
     return {
       transform: [
@@ -475,17 +528,27 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
       easing: Easing.out(Easing.cubic),
     });
     
+    // Clear any existing press timeouts
+    if (pressTimeout1Ref.current) {
+      clearTimeout(pressTimeout1Ref.current);
+    }
+    if (pressTimeout2Ref.current) {
+      clearTimeout(pressTimeout2Ref.current);
+    }
+    
     // Change value during first ripple
-    setTimeout(() => {
+    pressTimeout1Ref.current = setTimeout(() => {
       changeDiceValue();
+      pressTimeout1Ref.current = null;
     }, homeDiceConfig.pressRippleDuration * 0.3);
     
     // Return dice scale to normal and resume idle
-    setTimeout(() => {
+    pressTimeout2Ref.current = setTimeout(() => {
       diceScale.value = withSpring(1.0, {
         damping: homeDiceConfig.returnToNormal.damping,
         stiffness: homeDiceConfig.returnToNormal.stiffness,
       });
+      pressTimeout2Ref.current = null;
     }, homeDiceConfig.pressRippleDuration);
   };
 

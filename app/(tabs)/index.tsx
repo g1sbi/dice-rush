@@ -3,6 +3,7 @@ import GameTitle from '@/components/home/game-title';
 import HomeDice from '@/components/home/home-dice';
 import { getVersionString } from '@/constants/app-info';
 import { gameConfig } from '@/lib/game-config';
+import { colors } from '@/lib/home-background-config';
 import { useGameState } from '@/lib/game-state';
 import { logger } from '@/lib/logger';
 import { roomManager } from '@/lib/room-manager';
@@ -124,7 +125,9 @@ export default function HomeScreen() {
           )}
 
           <View style={[styles.actions, isInputFocused && styles.actionsFocused]}>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleHostGame}>
+            <TouchableOpacity 
+              style={[styles.primaryButton, { backgroundColor: colors.primary, shadowColor: colors.primary }]} 
+              onPress={handleHostGame}>
               <Text style={styles.primaryButtonText}>HOST GAME</Text>
             </TouchableOpacity>
 
@@ -147,17 +150,21 @@ export default function HomeScreen() {
                 <Text style={styles.errorText}>{roomCodeError}</Text>
               )}
               <TouchableOpacity 
-                style={[styles.joinButton, isJoining && styles.joinButtonDisabled]} 
+                style={[
+                  styles.joinButton, 
+                  { borderColor: colors.secondary, shadowColor: colors.secondary },
+                  isJoining && styles.joinButtonDisabled
+                ]} 
                 onPress={handleJoinGame}
                 disabled={isJoining}
               >
                 {isJoining ? (
                   <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color="#FF00FF" />
-                    <Text style={[styles.joinButtonText, { marginLeft: 8 }]}>LOOKING FOR BRO...</Text>
+                    <ActivityIndicator size="small" color={colors.secondary} />
+                    <Text style={[styles.joinButtonText, { marginLeft: 8, color: colors.secondary }]}>LOOKING FOR BRO...</Text>
                   </View>
                 ) : (
-                  <Text style={styles.joinButtonText}>JOIN GAME</Text>
+                  <Text style={[styles.joinButtonText, { color: colors.secondary }]}>JOIN GAME</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -213,13 +220,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryButton: {
-    backgroundColor: '#00D4FF',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 14,
     alignItems: 'center',
-    // Neon Glow
-    shadowColor: '#00D4FF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 10,
@@ -273,15 +277,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FF00FF',
-    // Magenta Glow
-    shadowColor: '#FF00FF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
   },
   joinButtonText: {
-    color: '#FF00FF',
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 1.5,

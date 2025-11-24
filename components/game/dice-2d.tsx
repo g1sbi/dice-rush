@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
   withSequence,
   withTiming
@@ -145,35 +146,55 @@ export default function Dice({ value, size = 120, animated = false, variant = 's
       rotationY.value = 0;
       scale.value = 1;
 
-      // Simple, clean 360 degree rotation
+      // Fast rotation for quick results display
       rotationY.value = withSequence(
-        withTiming(360, { duration: 800 }), // Single smooth rotation
+        withTiming(360, { duration: 350 }), // Fast rotation (350ms)
         withTiming(0, { duration: 0 }) // Instant reset for next time
       );
 
-      // Pop effect
+      // Pop effect - faster to match rotation
       scale.value = withSequence(
-        withTiming(1.2, { duration: 320 }),
-        withTiming(1, { duration: 480 })
+        withTiming(1.2, { duration: 150 }),
+        withTiming(1, { duration: 200 })
       );
     }
   }, [value, animated]);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    // Calculate scale based on rotation to simulate thickness
-    // When perpendicular (90/270 degrees), increase scale to maintain visibility
-    const rotation = rotationY.value % 360;
-    const angleFromPerpendicular = Math.abs((rotation % 180) - 90);
-    // When close to perpendicular, increase scale to simulate edge thickness
-    // This prevents the plane from completely disappearing
-    const thicknessScale = 1 + (Math.cos((angleFromPerpendicular * Math.PI) / 180) * 0.5);
+  // Pre-calculate rotation-derived values only when animated
+  const rotationDerived = useDerivedValue(() => {
+    if (!animated) return 0;
+    return rotationY.value % 360;
+  }, [animated]);
 
-    // Fade out when approaching perpendicular to hide face change
-    // Creates smooth transition by making dots invisible during the change
-    // Fade starts at ±25 degrees from perpendicular with exponential curve
-    const fadeThreshold = 25;
-    const fadeOpacity = angleFromPerpendicular < fadeThreshold
-      ? Math.pow(angleFromPerpendicular / fadeThreshold, 3) // Cubic fade for very fast transition
+  const angleFromPerpendicularDerived = useDerivedValue(() => {
+    if (!animated) return 90; // Max visibility when not animating
+    const rotation = rotationDerived.value;
+    return Math.abs((rotation % 180) - 90);
+  }, [animated]);
+
+  // Constants for fade calculation
+  const FADE_THRESHOLD = 25;
+  const THICKNESS_MULTIPLIER = 0.5;
+
+  const animatedStyle = useAnimatedStyle(() => {
+    // Skip expensive calculations when not animated
+    if (!animated) {
+      return {
+        transform: [
+          { scale: scale.value },
+        ],
+        opacity: opacity.value,
+      };
+    }
+
+    // Calculate scale based on rotation to simulate thickness
+    const angleFromPerpendicular = angleFromPerpendicularDerived.value;
+    // Simplified thickness calculation - avoid Math.cos when possible
+    const thicknessScale = 1 + (Math.cos((angleFromPerpendicular * Math.PI) / 180) * THICKNESS_MULTIPLIER);
+
+    // Simplified fade calculation - use square instead of cubic for better performance
+    const fadeOpacity = angleFromPerpendicular < FADE_THRESHOLD
+      ? Math.pow(angleFromPerpendicular / FADE_THRESHOLD, 2) // Square fade (faster than cubic)
       : 1;
 
     return {
@@ -188,7 +209,10 @@ export default function Dice({ value, size = 120, animated = false, variant = 's
 
   // Single face with wave distortion effects
   return (
-    <Animated.View style={[styles.container, { width: size, height: size }, animatedStyle]}>
+    <Animated.View 
+      style={[styles.container, { width: size, height: size }, animatedStyle]}
+      renderToHardwareTextureAndroid={true}
+      shouldRasterizeIOS={true}>
       <DiceFace faceValue={value} size={size} variant={variant} />
     </Animated.View>
   );
@@ -198,6 +222,7 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10, // Ensure dice renders above background
   },
   faceTransparent: {
     backgroundColor: 'transparent',

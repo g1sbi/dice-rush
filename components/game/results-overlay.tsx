@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -39,27 +39,48 @@ export default function ResultsOverlay({
   const myOpacity = useSharedValue(0);
   const myTranslateY = useSharedValue(50);
 
+  // Refs to track timeouts for cleanup
+  const diceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const myTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     opponentOpacity.value = withTiming(1, { duration: 300, reduceMotion: false });
     opponentTranslateY.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.cubic), reduceMotion: false });
 
-    setTimeout(() => {
+    diceTimeoutRef.current = setTimeout(() => {
       diceScale.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic), reduceMotion: false });
       diceRotation.value = withSequence(
         withTiming(360, { duration: 400, reduceMotion: false }),
         withTiming(0, { duration: 0, reduceMotion: false })
       );
+      diceTimeoutRef.current = null;
     }, 200);
 
-    setTimeout(() => {
+    myTimeoutRef.current = setTimeout(() => {
       myOpacity.value = withTiming(1, { duration: 300, reduceMotion: false });
       myTranslateY.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.cubic), reduceMotion: false });
+      myTimeoutRef.current = null;
     }, 600);
 
-    setTimeout(() => {
+    dismissTimeoutRef.current = setTimeout(() => {
       onDismiss();
+      dismissTimeoutRef.current = null;
     }, 4000);
-  }, []);
+
+    // Cleanup timeouts on unmount
+    return () => {
+      if (diceTimeoutRef.current) {
+        clearTimeout(diceTimeoutRef.current);
+      }
+      if (myTimeoutRef.current) {
+        clearTimeout(myTimeoutRef.current);
+      }
+      if (dismissTimeoutRef.current) {
+        clearTimeout(dismissTimeoutRef.current);
+      }
+    };
+  }, [onDismiss]);
 
   const opponentStyle = useAnimatedStyle(() => ({
     opacity: opponentOpacity.value,

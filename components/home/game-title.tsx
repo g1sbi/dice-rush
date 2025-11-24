@@ -1,13 +1,22 @@
 import { APP_INFO } from '@/constants/app-info';
+import { colors } from '@/lib/home-background-config';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 export default function GameTitle() {
+  // Convert hex to rgba for shadow
+  const hexToRgba = (hex: string, alpha: number) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.titleRow}>
         <Text style={styles.diceText}>DICE</Text>
-        <Text style={styles.rushText}>RUSH!</Text>
+        <Text style={[styles.rushText, { color: colors.primary, textShadowColor: hexToRgba(colors.primary, 0.4) }]}>RUSH!</Text>
       </View>
       
       <View style={styles.badgeContainer}>
@@ -41,10 +50,8 @@ const styles = StyleSheet.create({
   rushText: {
     fontSize: 42,
     fontWeight: '300', // Thin style
-    color: '#00D4FF', // Cyan accent
     fontStyle: 'italic', // Speed
     letterSpacing: 0,
-    textShadowColor: 'rgba(0, 212, 255, 0.4)', // Glow matching the text
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
   },

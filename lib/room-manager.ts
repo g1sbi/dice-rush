@@ -1126,39 +1126,37 @@ class RoomManager {
    */
   private handleNormalRoundEnd(newDice: number, results: RoundResults): void {
     const { playerId, opponentId, actions } = useGameState.getState();
-    actions.setGamePhase('REVEALING');
     
+    // Skip REVEALING phase - show results immediately
+    const myScore = this.scores[playerId] ?? gameConfig.INITIAL_SCORE;
+    const oppScore = this.scores[opponentId || ''] ?? gameConfig.INITIAL_SCORE;
+    
+    logger.debug('RoomManager', `Round ${this.round} | Broadcasting dice-result`, { dice: newDice, scores: this.scores });
+    
+    this.broadcast({
+      type: 'dice-result',
+      data: {
+        dice: newDice,
+        results,
+        scores: this.scores,
+      },
+    });
+
+    this.currentDice = newDice;
+    actions.setCurrentDice(newDice);
+    actions.updateScores(myScore, oppScore);
+    actions.setLastRoundResults(results);
+    actions.setGamePhase('RESULTS');
+    
+    this.resetRoundPreparationFlag();
+
     setTimeout(() => {
-      const myScore = this.scores[playerId] ?? gameConfig.INITIAL_SCORE;
-      const oppScore = this.scores[opponentId || ''] ?? gameConfig.INITIAL_SCORE;
-      
-      logger.debug('RoomManager', `Round ${this.round} | Broadcasting dice-result`, { dice: newDice, scores: this.scores });
-      
-      this.broadcast({
-        type: 'dice-result',
-        data: {
-          dice: newDice,
-          results,
-          scores: this.scores,
-        },
+      // startRound() will broadcast new-round with isRushRound status
+      // Fire and forget - async operation doesn't need to be awaited here
+      this.startRound().catch((error) => {
+        logger.error('RoomManager', 'Error in startRound', error);
       });
-
-      this.currentDice = newDice;
-      actions.setCurrentDice(newDice);
-      actions.updateScores(myScore, oppScore);
-      actions.setLastRoundResults(results);
-      actions.setGamePhase('RESULTS');
-      
-      this.resetRoundPreparationFlag();
-
-      setTimeout(() => {
-        // startRound() will broadcast new-round with isRushRound status
-        // Fire and forget - async operation doesn't need to be awaited here
-        this.startRound().catch((error) => {
-          logger.error('RoomManager', 'Error in startRound', error);
-        });
-      }, gameConfig.NEW_ROUND_DELAY);
-    }, gameConfig.DICE_ROLL_DELAY);
+    }, gameConfig.NEW_ROUND_DELAY);
   }
 
   /**
@@ -1271,6 +1269,7 @@ class RoomManager {
     
     logger.debug('RoomManager', `GUEST local scores after update from host:`, { ...this.scores });
     
+    // Show results immediately (no delay needed since host also shows immediately)
     actions.setCurrentDice(dice);
     actions.updateScores(myScore, oppScore);
     

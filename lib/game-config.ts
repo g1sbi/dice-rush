@@ -42,7 +42,6 @@ class GameConfig {
   get TIMEOUT_PENALTY() { return this.config.TIMEOUT_PENALTY; }
   get RESULTS_DISPLAY_DURATION() { return this.config.RESULTS_DISPLAY_DURATION; }
   get COUNTDOWN_DURATION() { return this.config.COUNTDOWN_DURATION; }
-  get DICE_ROLL_DELAY() { return this.config.DICE_ROLL_DELAY; }
   get NEW_ROUND_DELAY() { return this.config.NEW_ROUND_DELAY; }
   get GAME_OVER_DELAY() { return this.config.GAME_OVER_DELAY; }
   get START_GAME_DELAY() { return this.config.START_GAME_DELAY; }

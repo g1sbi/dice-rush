@@ -1,5 +1,5 @@
 import { homeBackgroundConfig } from '@/lib/home-background-config';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -40,17 +40,23 @@ interface ParticleConfig {
   color: string;
 }
 
-const Particle = ({ config }: { config: ParticleConfig }) => {
+const Particle = ({ config, isAnimating = false }: { config: ParticleConfig; isAnimating?: boolean }) => {
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(0);
   const bgConfig = homeBackgroundConfig.particles;
+  const isAnimatingRef = useRef(isAnimating);
+
+  // Update ref when isAnimating changes
+  useEffect(() => {
+    isAnimatingRef.current = isAnimating;
+  }, [isAnimating]);
 
   useEffect(() => {
     const movement = bgConfig.direction === 'up' ? -100 : 
                     bgConfig.direction === 'down' ? 100 :
                     Math.random() > 0.5 ? -100 : 100;
     
-    // Vertical movement
+    // Vertical movement - start animation once
     translateY.value = withDelay(
       config.delay,
       withRepeat(
@@ -63,7 +69,7 @@ const Particle = ({ config }: { config: ParticleConfig }) => {
       )
     );
 
-    // Opacity fade in/out
+    // Opacity fade in/out - use full opacity initially
     opacity.value = withDelay(
       config.delay,
       withRepeat(
@@ -76,17 +82,25 @@ const Particle = ({ config }: { config: ParticleConfig }) => {
         false
       )
     );
-  }, []);
+  }, []); // Run once on mount
 
-  const style = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: config.x },
-      { translateY: config.y + translateY.value },
-    ],
-    opacity: opacity.value,
-  }));
+  // Adjust opacity based on isAnimating state without recreating animations
+  const style = useAnimatedStyle(() => {
+    const baseOpacity = opacity.value;
+    const finalOpacity = isAnimatingRef.current ? baseOpacity * 0.5 : baseOpacity;
+    
+    return {
+      transform: [
+        { translateX: config.x },
+        { translateY: config.y + translateY.value },
+      ],
+      opacity: finalOpacity,
+    };
+  });
 
-  const glowStyle = bgConfig.enableGlow ? {
+
+  // Disable glow during animation for better performance
+  const glowStyle = (bgConfig.enableGlow && !isAnimating) ? {
     shadowColor: config.color,
     shadowRadius: config.size * 2,
     shadowOpacity: 0.8,
@@ -105,6 +119,7 @@ const Particle = ({ config }: { config: ParticleConfig }) => {
           ...glowStyle,
         },
       ]}
+      renderToHardwareTextureAndroid={true}
     />
   );
 };
@@ -112,11 +127,24 @@ const Particle = ({ config }: { config: ParticleConfig }) => {
 // Generate particles once outside the component
 const particles = generateParticles();
 
-export default function BackgroundParticles() {
+interface BackgroundParticlesProps {
+  isAnimating?: boolean; // When true, reduce effects for performance
+}
+
+export default function BackgroundParticles({ isAnimating = false }: BackgroundParticlesProps) {
+  // Reduce visible particles during animation for performance
+  const visibleParticles = isAnimating 
+    ? particles.filter((_, i) => i % 2 === 0) // Show every other particle
+    : particles;
+
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {particles.map((p) => (
-        <Particle key={p.id} config={p} />
+    <View 
+      style={StyleSheet.absoluteFill} 
+      pointerEvents="none"
+      renderToHardwareTextureAndroid={true}
+      shouldRasterizeIOS={true}>
+      {visibleParticles.map((p) => (
+        <Particle key={p.id} config={p} isAnimating={isAnimating} />
       ))}
     </View>
   );
