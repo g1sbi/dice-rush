@@ -28,11 +28,22 @@ export default function BettingTimer({ seconds, onExpire, isRushRound = false }:
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     
-    const speed = isRushRound ? 200 : Math.max(100, 300 / (11 - seconds));
+    // Pulse speed based on time remaining
+    // Rush rounds: always max speed (5 seconds speed)
+    // Normal rounds: speed increases at 7 and 5 seconds
+    let speed: number;
+    if (isRushRound || seconds <= 5) {
+      speed = 150; // Max speed (5 seconds and rush rounds)
+    } else if (seconds <= 7) {
+      speed = 300; // Medium speed (7 seconds)
+    } else {
+      speed = 500; // Normal speed (above 7 seconds)
+    }
+    
     scale.value = withRepeat(
       withSequence(
-        withTiming(1.1, { duration: speed, reduceMotion: false }),
-        withTiming(1, { duration: speed, reduceMotion: false })
+        withTiming(1.1, { duration: speed }),
+        withTiming(1, { duration: speed })
       ),
       -1,
       true
@@ -41,6 +52,17 @@ export default function BettingTimer({ seconds, onExpire, isRushRound = false }:
 
   const animatedStyle = useAnimatedStyle(() => {
     const currentSeconds = secondsValue.value;
+    
+    // Rush rounds: Always orange
+    if (isRushRound) {
+      return {
+        transform: [{ scale: scale.value }],
+        opacity: opacity.value,
+        color: '#FF8C00',
+      };
+    }
+    
+    // Normal rounds: Red when <= 3s, white otherwise
     const colorInterpolation = interpolate(
       currentSeconds,
       [0, 3, 10],
@@ -74,6 +96,8 @@ const styles = StyleSheet.create({
   timer: {
     fontWeight: 'bold',
     textAlign: 'center',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
 });
 
