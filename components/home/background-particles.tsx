@@ -20,14 +20,14 @@ function generateParticles() {
   const [minSpeed, maxSpeed] = config.speedRange;
   
   return Array.from({ length: config.count }).map((_, i) => ({
-    id: i,
-    x: Math.random() * width,
-    y: Math.random() * height,
+  id: i,
+  x: Math.random() * width,
+  y: Math.random() * height,
     size: Math.random() * (maxSize - minSize) + minSize,
     duration: Math.random() * (maxSpeed - minSpeed) + minSpeed,
-    delay: Math.random() * 2000,
+  delay: Math.random() * 2000,
     color: config.colors[Math.floor(Math.random() * config.colors.length)],
-  }));
+}));
 }
 
 interface ParticleConfig {
@@ -90,10 +90,10 @@ const Particle = ({ config, isAnimating = false }: { config: ParticleConfig; isA
     const finalOpacity = isAnimatingRef.current ? baseOpacity * 0.5 : baseOpacity;
     
     return {
-      transform: [
-        { translateX: config.x },
-        { translateY: config.y + translateY.value },
-      ],
+    transform: [
+      { translateX: config.x },
+      { translateY: config.y + translateY.value },
+    ],
       opacity: finalOpacity,
     };
   });

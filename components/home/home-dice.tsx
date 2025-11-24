@@ -1,7 +1,8 @@
 import Dice from '@/components/game/dice-2d';
 import { homeDiceConfig } from '@/lib/home-dice-config';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -71,7 +72,7 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
       return prevValue === 6 ? 1 : prevValue + 1;
     });
   };
-
+    
   // Create a single ripple animation with wave distortion
   const createRippleAnimation = (
     scaleValue: SharedValue<number>,
@@ -93,7 +94,7 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
     skewYValue.value = 0;
     scaleXValue.value = 1;
     scaleYValue.value = 1;
-    
+      
     // Animate scale expansion
     scaleValue.value = withDelay(
       delay,
@@ -111,7 +112,7 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
         easing: Easing.out(Easing.ease),
       })
     );
-    
+
     // Wave distortion is calculated in useAnimatedStyle based on scale progress
   };
 
@@ -167,8 +168,8 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
       wavePhase.value = withRepeat(
         withTiming(2 * Math.PI, {
           duration: 2000,
-          easing: Easing.linear,
-        }),
+        easing: Easing.linear,
+      }),
         -1,
         false
       );
@@ -253,42 +254,97 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
     }, homeDiceConfig.valueChangeInterval);
   };
 
-  // Initialize animations on mount
-  useEffect(() => {
-    startWavePhase();
-    startIdleRipples();
-    startValueChangeCycle();
+  // Helper function to clean up all animations and intervals
+  const cleanupAnimations = useCallback(() => {
+    cancelAnimation(diceScale);
+    cancelAnimation(diceSkewX);
+    cancelAnimation(diceSkewY);
+    cancelAnimation(diceRotateZ);
+    cancelAnimation(ripple1Scale);
+    cancelAnimation(ripple1Opacity);
+    cancelAnimation(ripple1SkewX);
+    cancelAnimation(ripple1SkewY);
+    cancelAnimation(ripple1ScaleX);
+    cancelAnimation(ripple1ScaleY);
+    cancelAnimation(ripple2Scale);
+    cancelAnimation(ripple2Opacity);
+    cancelAnimation(ripple2SkewX);
+    cancelAnimation(ripple2SkewY);
+    cancelAnimation(ripple2ScaleX);
+    cancelAnimation(ripple2ScaleY);
+    cancelAnimation(ripple3Scale);
+    cancelAnimation(ripple3Opacity);
+    cancelAnimation(ripple3SkewX);
+    cancelAnimation(ripple3SkewY);
+    cancelAnimation(ripple3ScaleX);
+    cancelAnimation(ripple3ScaleY);
+    cancelAnimation(wavePhase);
     
-    // Cleanup on unmount
-    return () => {
-      cancelAnimation(diceScale);
-      cancelAnimation(diceSkewX);
-      cancelAnimation(diceSkewY);
-      cancelAnimation(diceRotateZ);
-      cancelAnimation(ripple1Scale);
-      cancelAnimation(ripple1Opacity);
-      cancelAnimation(ripple2Scale);
-      cancelAnimation(ripple2Opacity);
-      cancelAnimation(ripple3Scale);
-      cancelAnimation(ripple3Opacity);
-      cancelAnimation(wavePhase);
-      if (valueChangeIntervalRef.current) {
-        clearInterval(valueChangeIntervalRef.current);
-      }
-      if (idleRippleIntervalRef.current) {
-        clearInterval(idleRippleIntervalRef.current);
-      }
-      if (valueChangeTimeoutRef.current) {
-        clearTimeout(valueChangeTimeoutRef.current);
-      }
-      if (pressTimeout1Ref.current) {
-        clearTimeout(pressTimeout1Ref.current);
-      }
-      if (pressTimeout2Ref.current) {
-        clearTimeout(pressTimeout2Ref.current);
-      }
-    };
+    if (valueChangeIntervalRef.current) {
+      clearInterval(valueChangeIntervalRef.current);
+      valueChangeIntervalRef.current = null;
+    }
+    if (idleRippleIntervalRef.current) {
+      clearInterval(idleRippleIntervalRef.current);
+      idleRippleIntervalRef.current = null;
+    }
+    if (valueChangeTimeoutRef.current) {
+      clearTimeout(valueChangeTimeoutRef.current);
+      valueChangeTimeoutRef.current = null;
+    }
+    if (pressTimeout1Ref.current) {
+      clearTimeout(pressTimeout1Ref.current);
+      pressTimeout1Ref.current = null;
+    }
+    if (pressTimeout2Ref.current) {
+      clearTimeout(pressTimeout2Ref.current);
+      pressTimeout2Ref.current = null;
+    }
   }, []);
+
+  // Helper function to reset all shared values to initial state
+  const resetSharedValues = useCallback(() => {
+    diceScale.value = 1;
+    diceSkewX.value = 0;
+    diceSkewY.value = 0;
+    diceRotateZ.value = 0;
+    ripple1Scale.value = 1;
+    ripple1Opacity.value = 0;
+    ripple1SkewX.value = 0;
+    ripple1SkewY.value = 0;
+    ripple1ScaleX.value = 1;
+    ripple1ScaleY.value = 1;
+    ripple2Scale.value = 1;
+    ripple2Opacity.value = 0;
+    ripple2SkewX.value = 0;
+    ripple2SkewY.value = 0;
+    ripple2ScaleX.value = 1;
+    ripple2ScaleY.value = 1;
+    ripple3Scale.value = 1;
+    ripple3Opacity.value = 0;
+    ripple3SkewX.value = 0;
+    ripple3SkewY.value = 0;
+    ripple3ScaleX.value = 1;
+    ripple3ScaleY.value = 1;
+    wavePhase.value = 0;
+    setIsAnimating(false);
+  }, []);
+
+  // Use useFocusEffect to pause/resume animations based on screen visibility
+  useFocusEffect(
+    useCallback(() => {
+      // Screen is focused - reset values and start fresh animations
+      resetSharedValues();
+      startWavePhase();
+      startIdleRipples();
+      startValueChangeCycle();
+
+      return () => {
+        // Screen loses focus - clean up all animations
+        cleanupAnimations();
+      };
+    }, [resetSharedValues, cleanupAnimations])
+  );
 
   // Derived values for wave calculations (only computed if distortion is enabled)
   const wavePhaseDerived = useDerivedValue(() => {
@@ -538,10 +594,10 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
     
     // Change value during first ripple
     pressTimeout1Ref.current = setTimeout(() => {
-      changeDiceValue();
+    changeDiceValue();
       pressTimeout1Ref.current = null;
     }, homeDiceConfig.pressRippleDuration * 0.3);
-    
+
     // Return dice scale to normal and resume idle
     pressTimeout2Ref.current = setTimeout(() => {
       diceScale.value = withSpring(1.0, {
@@ -574,7 +630,7 @@ export default function HomeDice({ size = homeDiceConfig.defaultSize }: HomeDice
         {/* Dice in center */}
         <Animated.View style={[styles.diceContainer, { width: size, height: size }, diceAnimatedStyle]}>
           <Dice value={diceValue} size={size} animated={isAnimating} variant="transparent" />
-        </Animated.View>
+      </Animated.View>
       </View>
     </Pressable>
   );

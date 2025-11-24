@@ -68,22 +68,22 @@ interface DotProps {
 }
 
 const Dot = ({ size, variant }: DotProps) => {
-  const dotStyle = variant === 'transparent'
-    ? styles.dotTransparent
+  const dotStyle = variant === 'transparent' 
+    ? styles.dotTransparent 
     : styles.dotSolid;
-
+  
   return (
-    <View
-      style={[
+  <View
+    style={[
         dotStyle,
-        {
-          width: size * 0.15,
-          height: size * 0.15,
-          borderRadius: (size * 0.15) / 2,
-        },
-      ]}
-    />
-  );
+      {
+        width: size * 0.15,
+        height: size * 0.15,
+        borderRadius: (size * 0.15) / 2,
+      },
+    ]}
+  />
+);
 };
 
 interface DiceFaceProps {
@@ -93,12 +93,12 @@ interface DiceFaceProps {
 }
 
 const DiceFace = ({ faceValue, size, variant }: DiceFaceProps) => {
-  const DICE_POSITIONS = variant === 'transparent'
-    ? DICE_POSITIONS_TIGHT
+  const DICE_POSITIONS = variant === 'transparent' 
+    ? DICE_POSITIONS_TIGHT 
     : DICE_POSITIONS_NORMAL;
   const positions = DICE_POSITIONS[faceValue] || DICE_POSITIONS[1];
   const dotSize = size * 0.15;
-
+  
   const faceStyle = variant === 'transparent'
     ? styles.faceTransparent
     : styles.faceSolid;
@@ -151,7 +151,7 @@ export default function Dice({ value, size = 120, animated = false, variant = 's
         withTiming(360, { duration: 350 }), // Fast rotation (350ms)
         withTiming(0, { duration: 0 }) // Instant reset for next time
       );
-
+      
       // Pop effect - faster to match rotation
       scale.value = withSequence(
         withTiming(1.2, { duration: 150 }),
@@ -191,12 +191,12 @@ export default function Dice({ value, size = 120, animated = false, variant = 's
     const angleFromPerpendicular = angleFromPerpendicularDerived.value;
     // Simplified thickness calculation - avoid Math.cos when possible
     const thicknessScale = 1 + (Math.cos((angleFromPerpendicular * Math.PI) / 180) * THICKNESS_MULTIPLIER);
-
+    
     // Simplified fade calculation - use square instead of cubic for better performance
     const fadeOpacity = angleFromPerpendicular < FADE_THRESHOLD
       ? Math.pow(angleFromPerpendicular / FADE_THRESHOLD, 2) // Square fade (faster than cubic)
       : 1;
-
+    
     return {
       transform: [
         { perspective: 1000 },

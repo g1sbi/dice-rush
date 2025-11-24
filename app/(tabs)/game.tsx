@@ -206,25 +206,27 @@ export default function GameScreen() {
           </View>
         </View>
 
-        <View style={styles.diceSection}>
-          <View style={styles.currentDice}>
-            <Dice value={currentDice} size={120} animated={false} />
+        {gamePhase !== 'GAME_OVER' && (
+          <View style={styles.diceSection}>
+            <View style={styles.currentDice}>
+              <Dice value={currentDice} size={120} animated={false} />
+            </View>
+            {showRushBadge && isRushRound && gamePhase === 'BETTING' && (
+              <Animated.View style={[styles.rushBadge, { opacity: badgeOpacity }]}>
+                <Text style={styles.rushBadgeText}>⚡ RUSH ROUND ⚡</Text>
+              </Animated.View>
+            )}
+            <View style={styles.timerContainer}>
+              {gamePhase === 'BETTING' ? (
+                <BettingTimer
+                  seconds={timeRemaining}
+                  onExpire={handleTimerExpire}
+                  isRushRound={isRushRound}
+                />
+              ) : null}
+            </View>
           </View>
-          {showRushBadge && isRushRound && gamePhase === 'BETTING' && (
-            <Animated.View style={[styles.rushBadge, { opacity: badgeOpacity }]}>
-              <Text style={styles.rushBadgeText}>⚡ RUSH ROUND ⚡</Text>
-            </Animated.View>
-          )}
-          <View style={styles.timerContainer}>
-            {gamePhase === 'BETTING' ? (
-              <BettingTimer
-                seconds={timeRemaining}
-                onExpire={handleTimerExpire}
-                isRushRound={isRushRound}
-              />
-            ) : null}
-          </View>
-        </View>
+        )}
         
         {/* Flash overlay for rush round start */}
         {isRushRound && (
