@@ -7,7 +7,7 @@ import type { Prediction } from '@/lib/game-logic';
 import { useGameState } from '@/lib/game-state';
 import { roomManager } from '@/lib/room-manager';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,6 +31,8 @@ export default function GameScreen() {
     playerRole,
     lastRoundResults,
     isRushRound,
+    connectionError,
+    roomCode,
     actions,
   } = useGameState();
 
@@ -40,11 +42,11 @@ export default function GameScreen() {
   const badgeOpacity = useSharedValue(0);
   const previousRushRound = useRef(false);
 
-  const handleQuit = async () => {
+  const handleQuit = useCallback(async () => {
     await roomManager.leaveRoom();
     actions.reset();
     router.push('/');
-  };
+  }, [actions, router]);
 
   const handleQuitPrompt = () => {
     Alert.alert(
@@ -73,6 +75,22 @@ export default function GameScreen() {
       setShowResults(false);
     }
   }, [gamePhase, lastRoundResults]);
+
+  useEffect(() => {
+    if (connectionError && gamePhase !== 'GAME_OVER') {
+      Alert.alert(
+        'Connection Error',
+        'Lost connection to the game room. The game cannot continue.',
+        [
+          {
+            text: 'Leave Game',
+            style: 'destructive',
+            onPress: handleQuit,
+          },
+        ]
+      );
+    }
+  }, [connectionError, gamePhase, handleQuit]);
 
   // Handle rush round visual indicators
   useEffect(() => {

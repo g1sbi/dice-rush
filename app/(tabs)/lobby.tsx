@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,7 +15,7 @@ import { useGameState } from '@/lib/game-state';
 
 export default function LobbyScreen() {
   const router = useRouter();
-  const { roomCode, opponentId, playerRole, actions } = useGameState();
+  const { roomCode, opponentId, playerRole, connectionError, actions } = useGameState();
   const [countdown, setCountdown] = useState<number | null>(null);
   const pulse = useSharedValue(1);
 
@@ -50,7 +50,7 @@ export default function LobbyScreen() {
     }
   }, [countdown, opponentId]);
 
-  const handleLeave = async () => {
+  const handleLeave = useCallback(async () => {
     Alert.alert(
       'Leave Room?',
       'Are you sure you want to leave?',
@@ -67,7 +67,47 @@ export default function LobbyScreen() {
         },
       ]
     );
-  };
+  }, [actions, router]);
+
+  const handleRetryConnection = useCallback(async () => {
+    if (!roomCode) return;
+    
+    actions.setConnectionError(false);
+    const role = playerRole || 'guest';
+    
+    if (role === 'host') {
+      try {
+        await roomManager.createRoom();
+      } catch (error) {
+        Alert.alert('Error', 'Failed to reconnect. Please try leaving and creating a new room.');
+      }
+    } else {
+      const success = await roomManager.joinRoom(roomCode);
+      if (!success) {
+        Alert.alert('Error', 'Failed to reconnect. Please check your connection and try again.');
+      }
+    }
+  }, [roomCode, playerRole, actions]);
+
+  useEffect(() => {
+    if (connectionError) {
+      Alert.alert(
+        'Connection Error',
+        'Lost connection to the game room. Would you like to retry?',
+        [
+          {
+            text: 'Leave',
+            style: 'destructive',
+            onPress: handleLeave,
+          },
+          {
+            text: 'Retry',
+            onPress: handleRetryConnection,
+          },
+        ]
+      );
+    }
+  }, [connectionError, handleLeave, handleRetryConnection]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value }],
