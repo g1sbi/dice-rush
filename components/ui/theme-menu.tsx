@@ -1,7 +1,7 @@
-import Dice from '@/components/game/dice-2d';
-import { useTheme } from '@/lib/theme-context';
-import type { ColorPaletteName } from '@/lib/home-background-config';
-import { colorPalettes } from '@/lib/home-background-config';
+import Dice from '@games/dice-rush/components/dice-2d';
+import { useTheme } from '@shared/theme/ThemeContext';
+import type { ColorPaletteName } from '@shared/theme/home-background-config';
+import { colorPalettes } from '@shared/theme/home-background-config';
 import * as Haptics from 'expo-haptics';
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';

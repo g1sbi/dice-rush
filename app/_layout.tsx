@@ -6,7 +6,7 @@ import 'react-native-reanimated';
 import '../polyfills';
 
 // Import configuration overrides (must be imported early to apply before game starts)
-import '@/lib/config-overrides';
+import '@games/dice-rush/lib/config-overrides';
 
 // Only import react-native-get-random-values on native platforms
 if (Platform.OS !== 'web') {
@@ -14,11 +14,7 @@ if (Platform.OS !== 'web') {
 }
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { ThemeProvider } from '@/lib/theme-context';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+import { ThemeProvider } from '@shared/theme/ThemeContext';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -27,7 +23,10 @@ export default function RootLayout() {
     <ThemeProvider>
       <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="game-picker" options={{ headerShown: false }} />
+          <Stack.Screen name="lobby" options={{ headerShown: false }} />
+          <Stack.Screen name="[gameId]" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
       </NavigationThemeProvider>
