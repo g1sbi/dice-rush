@@ -22,12 +22,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="game-picker" options={{ headerShown: false }} />
-          <Stack.Screen name="lobby" options={{ headerShown: false }} />
-          <Stack.Screen name="[gameId]" options={{ headerShown: false }} />
-        </Stack>
+        <Stack screenOptions={{ headerShown: false }} />
         <StatusBar style="auto" />
       </NavigationThemeProvider>
     </ThemeProvider>

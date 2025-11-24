@@ -1,6 +1,11 @@
-# DICE RUSH! - Simultaneous Multiplayer Betting Game
+# Multi-Game Hub - React Native Gaming Platform
 
-A real-time multiplayer dice betting game built with React Native Expo and Supabase Realtime.
+A React Native Expo platform hosting multiple real-time multiplayer games, built with a modular architecture and Supabase Realtime.
+
+## Games
+
+1. **Dice Rush** - Simultaneous multiplayer dice betting game
+2. **Edge** - 1-button multiplayer chicken game (early stage)
 
 ## Quick Start
 
@@ -8,20 +13,35 @@ A real-time multiplayer dice betting game built with React Native Expo and Supab
 # 1. Install dependencies
 npm install
 
-# 2. Set up Supabase (see Setup section below)
+# 2. Set up Supabase for each game (see Setup section below)
 
 # 3. Start the app
 npx expo start
+
+# 4. Select a game from the Game Picker screen
 ```
 
-## Features
+## Platform Features
 
-- **Simultaneous Betting**: Both players bet at the same time on each round
-- **Real-time Multiplayer**: Peer-to-peer gameplay using Supabase Realtime
-- **10-Second Rounds**: Fast-paced betting with countdown timer
-- **Special Bonuses**: Mirror bonus, contrarian bonus, and speed bonus
-- **Rush Rounds**: 33% chance each round (5-second timer) with visual indicators
-- **Win Conditions**: First to 300 points, opponent to 0, or most points after 20 rounds
+- **Multi-Game Architecture**: Modular system for hosting multiple games
+- **Game Picker**: Choose from available games
+- **Shared Infrastructure**: Common components and utilities
+- **Independent Games**: Each game maintains its own logic and state
+- **Real-time Multiplayer**: Powered by Supabase Realtime
+
+### Dice Rush Features
+
+- Simultaneous betting on dice rolls
+- 10-second rounds (5 seconds for rush rounds)
+- Special bonuses and win streaks
+- First to 300 points wins
+
+### Edge Features
+
+- 1-button chicken game mechanics
+- Room-based multiplayer (2-8 players)
+- Simple hold-and-release gameplay
+- Lobby system with room codes
 
 ## Setup
 
@@ -32,6 +52,10 @@ npm install
 ```
 
 ### 2. Configure Supabase
+
+Each game can use its own Supabase project or share a common one.
+
+**For Dice Rush and Edge (using same credentials):**
 
 1. Create a free Supabase project at [supabase.com](https://supabase.com)
 2. Get your project URL and anon key from the project settings (Project Settings → API)
@@ -46,6 +70,8 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 - Use `EXPO_PUBLIC_` prefix (required for Expo)
 - Never commit `.env` to git
 - Restart Expo server after creating/modifying `.env`
+- Both games will use the same Supabase credentials by default
+- Each game manages its own database tables independently
 
 ### 3. Start the App
 
@@ -60,7 +86,14 @@ npx expo start
 # - Scan QR code with Expo Go app on your phone
 ```
 
+For detailed setup instructions, see [SETUP.md](./documentation/SETUP.md).
+
 ## How to Play
+
+1. **Select a Game**: Choose from the Game Picker screen
+2. **Each game has its own rules:**
+
+### Dice Rush
 
 1. **Host a Game**: Tap "HOST GAME" to create a room and get a 6-digit code
 2. **Join a Game**: Enter the 6-digit code and tap "JOIN GAME"
@@ -133,16 +166,21 @@ See [DOCS.md](./DOCS.md) for detailed deployment instructions.
 
 ## Documentation
 
-📚 **Full documentation available in [DOCS.md](./DOCS.md)**
+📚 **Full documentation available in the `/documentation` folder:**
 
-The documentation includes:
-- Architecture overview
-- Code structure and API reference
-- Component documentation
-- Game flow explanation
-- Detailed setup instructions
-- Deployment guides (EAS Build, Web, etc.)
-- Troubleshooting guide
+- **[ARCHITECTURE.md](./documentation/ARCHITECTURE.md)** - Multi-game architecture and how to add new games
+- **[DOCS.md](./documentation/DOCS.md)** - Technical documentation for Dice Rush
+- **[GAME_GUIDE.md](./documentation/GAME_GUIDE.md)** - Gameplay guide
+- **[QUICK_START.md](./documentation/QUICK_START.md)** - Quick start guide
+
+### Key Topics
+
+- Multi-game architecture and modularity
+- Adding new games to the platform
+- IGame interface specification
+- Game registration system
+- Shared vs game-specific code
+- Setup and deployment
 
 ## Recent Improvements
 
@@ -153,39 +191,67 @@ The documentation includes:
 ## Tech Stack
 
 - **React Native** with Expo
-- **Supabase Realtime** for peer-to-peer communication
-- **Zustand** for state management
+- **Expo Router** for file-based navigation
+- **TypeScript** for type safety
+- **Supabase Realtime** for multiplayer communication
+- **Zustand** for state management (Dice Rush)
 - **React Native Reanimated** for animations
 - **Expo Haptics** for tactile feedback
+- **Modular Architecture** for multi-game support
 
 ## Project Structure
 
 ```
 ├── app/
-│   └── (tabs)/
-│       ├── index.tsx      # Home screen (create/join)
-│       ├── lobby.tsx      # Waiting room
-│       └── game.tsx       # Main game screen
-├── components/
-│   └── game/              # Game components
-│       ├── dice.tsx
-│       ├── betting-timer.tsx
-│       ├── betting-panel.tsx
-│       ├── player-info.tsx
-│       └── results-overlay.tsx
-└── lib/
-    ├── supabase.ts        # Supabase client
-    ├── room-manager.ts    # Room management
-    ├── game-logic.ts      # Game rules
-    └── game-state.ts      # State management
+│   ├── index.tsx              # Landing page (redirects to game-picker)
+│   ├── game-picker.tsx        # Game selection screen
+│   ├── [gameId]/              # Dynamic routes for each game
+│   │   ├── index.tsx          # Game home screen wrapper
+│   │   └── game.tsx           # Game screen wrapper
+│   └── (tabs)/                # Tab navigation (legacy Dice Rush routes)
+├── src/
+│   ├── app/
+│   │   └── screens/           # Shared screens
+│   │       └── GamePickerScreen.tsx
+│   ├── games/
+│   │   ├── types.ts           # IGame interface
+│   │   ├── registry.ts        # Game registration
+│   │   ├── dice-rush/         # Dice Rush game
+│   │   │   ├── index.ts       # IGame export
+│   │   │   ├── components/
+│   │   │   ├── screens/
+│   │   │   └── lib/
+│   │   └── edge/              # Edge game
+│   │       ├── index.ts       # IGame export
+│   │       ├── components/
+│   │       ├── screens/
+│   │       ├── services/
+│   │       └── lib/
+│   └── shared/                # Shared utilities
+│       ├── components/
+│       ├── services/
+│       └── theme/
+└── components/                # Legacy components
 ```
+
+## Adding a New Game
+
+Want to add a new game to the platform? See [ARCHITECTURE.md](./documentation/ARCHITECTURE.md) for detailed instructions.
+
+Quick steps:
+
+1. Create game folder in `src/games/[game-name]/`
+2. Implement IGame interface
+3. Create HomeScreen and GameScreen
+4. Register game in `src/games/registry.ts`
+5. Test and deploy
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test thoroughly
+4. Test thoroughly (especially multiplayer functionality)
 5. Submit a pull request
 
 ## License

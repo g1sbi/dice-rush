@@ -52,8 +52,8 @@ export default function LobbyScreen() {
       return () => clearInterval(interval);
     } else if (countdown === null && opponentId) {
       // Navigate to game screen based on gameId
-      const gameRoute = gameId ? `/${gameId}/game` : '/dice-rush/game';
-      router.push(gameRoute as any);
+      const targetGameId = gameId || 'dice-rush';
+      router.push(`/${targetGameId}/game`);
     }
   }, [countdown, opponentId, gameId, router]);
 

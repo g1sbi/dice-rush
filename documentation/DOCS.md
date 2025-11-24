@@ -1,67 +1,183 @@
-# DICE RUSH! - Technical Documentation
+# Multi-Game Platform - Technical Documentation
 
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
-2. [Project Structure](#project-structure)
-3. [Core Systems](#core-systems)
-4. [Component Documentation](#component-documentation)
-5. [Game Flow](#game-flow)
-6. [Setup & Execution](#setup--execution)
-7. [Deployment](#deployment)
-8. [Troubleshooting](#troubleshooting)
+2. [Multi-Game System](#multi-game-system)
+3. [Project Structure](#project-structure)
+4. [Core Systems](#core-systems)
+5. [Component Documentation](#component-documentation)
+6. [Game Flow](#game-flow)
+7. [Setup & Execution](#setup--execution)
+8. [Deployment](#deployment)
+9. [Troubleshooting](#troubleshooting)
 
 ## Architecture Overview
 
-DICE RUSH! is a real-time multiplayer game built with React Native Expo. It uses Supabase Realtime for peer-to-peer communication without requiring a custom backend server.
+This is a multi-game platform built with React Native Expo, hosting multiple real-time multiplayer games within a single application. Each game is self-contained and pluggable through a modular architecture.
 
 ### Key Technologies
 
 - **React Native Expo**: Cross-platform mobile framework
+- **Expo Router**: File-based navigation with dynamic routes
+- **TypeScript**: Type-safe development
 - **Supabase Realtime**: WebSocket-based real-time synchronization
-- **Zustand**: Lightweight state management
+- **Zustand**: Lightweight state management (game-specific)
 - **React Native Reanimated**: High-performance animations
-- **Expo Router**: File-based routing system
 
-### Architecture Pattern
+### Platform Architecture
 
-The game follows a **host-guest** pattern:
+The platform uses a **modular multi-game system**:
 
-- **Host**: Creates the room, manages game state, rolls dice, broadcasts results
-- **Guest**: Joins existing room, receives game state updates, displays results
+- **Game Registry**: Central registry of all available games
+- **IGame Interface**: Contract that all games must implement
+- **Dynamic Routing**: Games are loaded dynamically via `/[gameId]` routes
+- **Game Picker**: Central hub for game selection
+- **Shared Infrastructure**: Common components, themes, and utilities
 
-Both players run identical client code, but the host has additional responsibilities for game orchestration.
+Each game can:
+- Use its own state management approach
+- Maintain independent logic and components
+- Share or use separate Supabase projects
+- Be developed and tested independently
+
+## Multi-Game System
+
+### IGame Interface
+
+All games implement the `IGame` interface from `src/games/types.ts`:
+
+```typescript
+export interface IGame {
+  id: string;                     // Unique identifier
+  name: string;                   // Display name
+  thumbnail: ImageSourcePropType; // Picker thumbnail
+  minPlayers: number;             // Min players
+  maxPlayers: number;             // Max players
+  HomeScreen: React.ComponentType; // Room screen
+  GameScreen: React.ComponentType; // Game screen
+}
+```
+
+### Game Registry
+
+The `src/games/registry.ts` maintains all available games:
+
+```typescript
+import { diceRushGame } from './dice-rush';
+import { edgeGame } from './edge';
+
+export const GAMES: IGame[] = [diceRushGame, edgeGame];
+
+export function getGameById(id: string): IGame | undefined {
+  return GAMES.find((game) => game.id === id);
+}
+```
+
+### Navigation Flow
+
+```
+Launch → Game Picker
+         ↓
+    Select Game
+         ↓
+  /[gameId] (HomeScreen)
+         ↓
+  /[gameId]/game (GameScreen)
+```
+
+### Current Games
+
+**Dice Rush** - Simultaneous multiplayer dice betting game
+- Host-guest architecture
+- Zustand state management
+- 2 players, rounds-based gameplay
+
+**Edge** - 1-button multiplayer chicken game
+- Room-based multiplayer
+- React hooks for state
+- 2-8 players, lobby system
+
+For detailed information on adding new games, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## Project Structure
 
 ```
-dice-rush/
+multi-game-platform/
 ├── app/
-│   ├── _layout.tsx              # Root layout with theme provider
-│   └── (tabs)/
-│       ├── _layout.tsx          # Tab navigation (hidden tabs for lobby/game)
-│       ├── index.tsx            # Home screen - create/join game
-│       ├── lobby.tsx            # Waiting room with room code
-│       └── game.tsx             # Main game screen
-├── components/
-│   └── game/
-│       ├── dice-2d.tsx         # Animated dice component with 3D-like appearance
-│       ├── betting-timer.tsx   # Countdown timer with visual pressure
-│       ├── betting-panel.tsx   # Bet amount selection + prediction buttons
-│       ├── player-info.tsx     # Points, streak, round display
-│       └── results-overlay.tsx # Split-screen results animation
-├── lib/
-│   ├── supabase.ts             # Supabase client initialization
-│   ├── game-state.ts           # Zustand store for game state
-│   ├── game-logic.ts           # Game rules and calculations
-│   └── room-manager.ts         # Room creation, joining, message handling
-├── constants/
-│   └── theme.ts                # Color scheme definitions
-└── hooks/
-    └── use-color-scheme.ts     # Theme detection hook
+│   ├── _layout.tsx              # Root layout with theme/navigation
+│   ├── index.tsx                # Landing page (redirects to game-picker)
+│   ├── game-picker.tsx          # Game selection screen
+│   ├── [gameId]/                # Dynamic game routes
+│   │   ├── index.tsx            # Game HomeScreen wrapper
+│   │   └── game.tsx             # Game GameScreen wrapper
+│   └── (tabs)/                  # Legacy Dice Rush routes
+│       ├── index.tsx
+│       ├── lobby.tsx
+│       └── game.tsx
+├── src/
+│   ├── app/
+│   │   └── screens/
+│   │       └── GamePickerScreen.tsx  # Game selection UI
+│   ├── games/
+│   │   ├── types.ts             # IGame interface
+│   │   ├── registry.ts          # Game registry
+│   │   ├── dice-rush/           # Dice Rush game
+│   │   │   ├── index.ts         # IGame export
+│   │   │   ├── components/      # Game components
+│   │   │   ├── screens/         # DiceRushHome, DiceRushGame
+│   │   │   └── lib/             # Game logic, state, room management
+│   │   └── edge/                # Edge game
+│   │       ├── index.ts         # IGame export
+│   │       ├── components/      # Game components
+│   │       ├── screens/         # EdgeHome, EdgeGame
+│   │       ├── services/        # RoomService, RealtimeService
+│   │       ├── hooks/           # useRoom
+│   │       ├── lib/             # Auth, logger, supabase
+│   │       └── types/           # Game types
+│   └── shared/                  # Shared utilities
+│       ├── components/          # Background, ThemeMenu
+│       ├── services/            # Matchmaking, etc.
+│       └── theme/               # ThemeContext, colors
+├── components/                  # Legacy components
+└── documentation/
+    ├── ARCHITECTURE.md          # Multi-game architecture guide
+    ├── DOCS.md                  # This file
+    ├── GAME_GUIDE.md
+    └── QUICK_START.md
 ```
 
 ## Core Systems
+
+### Platform Systems
+
+#### Game Registry (`src/games/registry.ts`)
+
+Central registry managing all available games.
+
+**Key Functions:**
+
+- `GAMES`: Array of all registered games
+- `getGameById(id)`: Fetch game by ID
+- `pickRandomGame()`: Select random game
+
+#### Game Wrappers
+
+**`app/[gameId]/index.tsx`** - HomeScreen wrapper:
+```typescript
+const game = getGameById(gameId);
+const HomeScreen = game.HomeScreen;
+return <HomeScreen />;
+```
+
+**`app/[gameId]/game.tsx`** - GameScreen wrapper:
+```typescript
+const game = getGameById(gameId);
+const GameScreen = game.GameScreen;
+return <GameScreen />;
+```
+
+### Dice Rush Systems
 
 ### 1. Supabase Client (`lib/supabase.ts`)
 

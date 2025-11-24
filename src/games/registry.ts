@@ -1,7 +1,8 @@
 import type { IGame } from './types';
 import { diceRushGame } from './dice-rush';
+import { edgeGame } from './edge';
 
-export const GAMES: IGame[] = [diceRushGame];
+export const GAMES: IGame[] = [diceRushGame, edgeGame];
 
 export function pickRandomGame(): IGame | null {
   if (GAMES.length === 0) return null;
